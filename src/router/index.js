@@ -1,0 +1,50 @@
+import { createRouter, createWebHistory } from 'vue-router'
+
+const routes = [
+  {
+    path: '/',
+    redirect: '/login'
+  },
+  {
+    path: '/login',
+    name: 'Login',
+    component: () => import('../views/Login.vue')
+  },
+  {
+    path: '/register',
+    name: 'Register',
+    component: () => import('../views/Register.vue')
+  },
+  {
+    path: '/dashboard',
+    name: 'Dashboard',
+    component: () => import('../views/Dashboard.vue'),
+    meta: { requiresAuth: true }
+  },
+  {path: '/manager', component: import('../views/Manager.vue'),
+    children: [
+      {path: 'home', component: import('../views/Home.vue'),},
+      {path: 'product', component: import('../views/Product.vue'),},
+      {path: 'approve', component: import('../views/Approve.vue'),},
+      {path: 'risk', component: import('../views/Risk.vue'),},
+      {path: 'feedback', component: import('../views/Feedback.vue'),},
+      {path: 'setting', component: import('../views/Setting.vue'),},
+      {path: 'limit', component: import('../views/Limit.vue'),},
+    ]
+  },
+]
+
+const router = createRouter({
+  history: createWebHistory(),
+  routes
+})
+
+router.beforeEach((to, from, next) => {
+  if (to.meta.requiresAuth) {
+    next()
+  } else {
+    next()
+  }
+})
+
+export default router
