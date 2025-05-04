@@ -38,6 +38,16 @@ export const getSelfInfoAPI = async () => {
     }
 }
 
+// 改密码
+export const changePasswordAPI = async (payload) => {
+    try {
+        const response = await apiClient.post('/admin/users/updatePassword', payload);
+        return response.data;
+    } catch (error) {
+        throw new Error(error.response?.data?.msg || error.message);
+    }
+}
+
 // 获取贷款统计数据
 export const getStatisticsAPI = async (startDate, endDate) => {
     try {
@@ -321,6 +331,16 @@ export const fetchUserAPI = async (currentPage, pageSize, filterStatus) => {
         }
 
         const response = await apiClient.get(url);
+        return response.data;
+    } catch (error) {
+        throw new Error(error.response?.data?.msg || error.message);
+    }
+};
+
+// 根据用户ID获取用户详情
+export const fetchUserByIdAPI = async (userId) => {
+    try {
+        const response = await apiClient.get(`/admin/users/get?userId=${userId}`);
         return response.data;
     } catch (error) {
         throw new Error(error.response?.data?.msg || error.message);

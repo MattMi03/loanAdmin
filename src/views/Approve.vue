@@ -42,7 +42,6 @@ const statusMap = {
     SETTLED: { label: '已结清', type: 'success' }
 };
 
-// 获取申请列表
 const fetchApplications = async () => {
     loading.value = true;
     try {
@@ -50,13 +49,11 @@ const fetchApplications = async () => {
 
         if (applyId.value) {
             response = await fetchApplicationByIdAPI(applyId.value);
+        } else if (userId.value) {
+            response = await fetchApplicationByUserIdAPI(userId.value, currentPage.value, pageSize.value, filterStatus.value);
+        } else {
+            response = await fetchApplicationAPI(currentPage.value, pageSize.value, filterStatus.value);
         }
-        else
-            if (userId.value) {
-                response = await fetchApplicationByUserIdAPI(userId.value, currentPage.value, pageSize.value, filterStatus.value);
-            } else {
-                response = await fetchApplicationAPI(currentPage.value, pageSize.value, filterStatus.value);
-            }
 
         const { loanApplications, users, product, pagination } = response.data || {};
 
@@ -85,7 +82,6 @@ const fetchApplications = async () => {
                 };
             });
 
-
             totalItems.value = pagination?.total_count || 0;
         }
     } catch (error) {
@@ -97,7 +93,7 @@ const fetchApplications = async () => {
 
 const handleAudit = async () => {
     try {
-        const statusCode = auditAction.value === 'approve' ? 1 : 2;
+        const statusCode = auditAction.value === 'approve' ? 0 : 1;
 
         await auditApplicationAPI(currentApplyId.value, statusCode, comment.value);
 
@@ -179,7 +175,6 @@ const showRepaymentPlan = async (loanId) => {
     }
 };
 
-
 const downloadContract = async (applyId) => {
     try {
         const fileData = await downloadContractAPI(applyId)
@@ -188,7 +183,7 @@ const downloadContract = async (applyId) => {
         const url = window.URL.createObjectURL(blob)
         const link = document.createElement('a')
         link.href = url
-        link.setAttribute('download', `loan_contract_${applyId}.pdf`) 
+        link.setAttribute('download', `loan_contract_${applyId}.pdf`)
         document.body.appendChild(link)
         link.click()
 
@@ -293,104 +288,122 @@ watch(() => route.query.applyId, (newId) => {
     }
     fetchApplications();
 });
-
 </script>
 
 <template>
-    <div class="container">
-        <div class="filter-box">
-            <el-select v-model="filterStatus" @change="handleStatusChange" placeholder="选择状态" style="width: 150px;">
-                <el-option v-for="item in [
-                    { value: 'all', label: '全部状态' },
-                    ...Object.keys(statusMap).map(k => ({ value: k, label: statusMap[k].label }))
-                ]" :key="item.value" :label="item.label" :value="item.value" />
-            </el-select>
-        </div>
-        <el-input v-model="userId" placeholder="输入用户ID" clearable @clear="clearUserId" @input="handleUserIdInputChange"
-            style="width: 200px; margin-bottom: 20px;"></el-input>
-        <el-input v-model="applyId" placeholder="输入申请ID" clearable @clear="clearApplyId"
-            @input="handleApplyIdInputChange" style="width: 200px; margin-bottom: 20px;"></el-input>
-
-        <el-table :data="applications" v-loading="loading" style="width: 100%" stripe>
-            <el-table-column prop="id" label="申请ID" />
-            <el-table-column label="用户名">
-                <template #default="{ row }">
-                    {{ row.user.username }}
-                </template>
-            </el-table-column>
-            <el-table-column label="金额">
-                <template #default="{ row }">
-                    ￥{{ row.amount.toFixed(2).toLocaleString() }}
-                </template>
-            </el-table-column>
-            <el-table-column label="期限">
-                <template #default="{ row }">
-                    {{ row.term }}个月
-                </template>
-            </el-table-column>
-            <el-table-column label="利率">
-                <template #default="{ row }">
-                    {{ (row.interestRate * 100).toFixed(2) }}%
-                </template>
-            </el-table-column>
-            <el-table-column label="状态">
-                <template #default="{ row }">
-                    <el-tag :type="statusMap[row.status].type">
-                        {{ statusMap[row.status].label }}
-                    </el-tag>
-                </template>
-            </el-table-column>
-            <el-table-column prop="createTime" label="创建时间">
-                <template #default="{ row }">
-                    {{ new Date(row.createTime).toLocaleString() }}
-                </template>
-            </el-table-column>
-            <el-table-column label="查看详情">
-                <template #default="{ row }">
-                    <el-button type="primary" size="small" @click="showDetail(row)">
-                        详情
-                    </el-button>
-                </template>
-            </el-table-column>
-            <el-table-column label="操作" width="180">
-                <template #default="{ row }">
-                    <div class="action-buttons">
-                        <el-button v-if="row.status === 'PENDING'" type="success" size="small"
-                            @click="openAuditDialog(row.id, 'approve')">
-                            通过
-                        </el-button>
-                        <el-button v-if="row.status === 'PENDING'" type="danger" size="small"
-                            @click="openAuditDialog(row.id, 'reject')">
-                            拒绝
-                        </el-button>
-                        <el-button v-if="row.status === 'APPROVED'" type="info" size="small"
-                            @click="openDisburseDialog(row)">
-                            放款
-                        </el-button>
-                        <el-button v-if="row.status === 'DISBURSED'" type="primary" size="small"
-                            @click="showRepaymentPlan(row.id)">
-                            还款计划
-                        </el-button>
-                        <el-button v-if="row.status === 'DISBURSED'" type="primary" size="small"
-                            @click="downloadContract(row.id)">
-                            下载合同
-                        </el-button>
+    <div class="approval-management-container">
+        <el-card class="management-card">
+            <template #header>
+                <div class="card-header">
+                    <h2 class="management-title">贷款审批</h2>
+                    <div class="header-actions">
+                        <el-select v-model="filterStatus" @change="handleStatusChange" placeholder="选择状态"
+                            class="status-select" popper-class="status-select-dropdown">
+                            <el-option v-for="item in [
+                                { value: 'all', label: '全部状态' },
+                                ...Object.keys(statusMap).map(k => ({ value: k, label: statusMap[k].label }))
+                            ]" :key="item.value" :label="item.label" :value="item.value" />
+                        </el-select>
+                        <el-input v-model="userId" placeholder="输入用户ID" clearable @clear="clearUserId"
+                            @input="handleUserIdInputChange" class="search-input" />
+                        <el-input v-model="applyId" placeholder="输入申请ID" clearable @clear="clearApplyId"
+                            @input="handleApplyIdInputChange" class="search-input" />
                     </div>
-                </template>
-            </el-table-column>
-        </el-table>
+                </div>
+            </template>
 
-        <div class="pagination-container">
-            <el-pagination :current-page="currentPage" :page-size="pageSize" :total="totalItems"
-                :page-sizes="[1, 5, 10, 20, 50]" :pager-count="3" layout="total, sizes, prev, pager, next, jumper"
-                @current-change="handlePageChange" @size-change="handlePageSizeChange" />
-        </div>
+            <div class="table-container">
+                <el-table :data="applications" v-loading="loading" style="width: 100%" :header-cell-style="{
+                    background: '#f8fafc',
+                    color: '#64748b',
+                    textAlign: 'center'
+                }" :cell-style="{ padding: '12px 0' }" stripe>
+                    <el-table-column prop="id" label="申请ID" width="100" header-align="center" />
+
+                    <el-table-column label="用户名" header-align="center">
+                        <template #default="{ row }">
+                            <div class="user-info-cell">
+                                <span class="username">{{ row.user.username }}</span>
+                            </div>
+                        </template>
+                    </el-table-column>
+
+                    <el-table-column label="金额" header-align="center">
+                        <template #default="{ row }">
+                            ￥{{ row.amount.toFixed(2).toLocaleString() }}
+                        </template>
+                    </el-table-column>
+
+                    <el-table-column label="期限" header-align="center">
+                        <template #default="{ row }">
+                            {{ row.term }}个月
+                        </template>
+                    </el-table-column>
+
+                    <el-table-column label="利率" header-align="center">
+                        <template #default="{ row }">
+                            {{ (row.interestRate * 100).toFixed(2) }}%
+                        </template>
+                    </el-table-column>
+
+                    <el-table-column label="状态" header-align="center">
+                        <template #default="{ row }">
+                            <el-tag :type="statusMap[row.status].type" class="status-tag">
+                                {{ statusMap[row.status].label }}
+                            </el-tag>
+                        </template>
+                    </el-table-column>
+
+                    <el-table-column label="查看详情" header-align="center">
+                        <template #default="{ row }">
+                            <el-button type="primary" size="small" @click="showDetail(row)" class="detail-button">
+                                详情
+                            </el-button>
+                        </template>
+                    </el-table-column>
+
+                    <el-table-column label="操作" fixed="right" header-align="center">
+                        <template #default="{ row }">
+                            <div class="action-buttons">
+                                <el-button v-if="row.status === 'PENDING'" type="success" size="small"
+                                    @click="openAuditDialog(row.id, 'approve')" class="approve-button">
+                                    通过
+                                </el-button>
+                                <el-button v-if="row.status === 'PENDING'" type="danger" size="small"
+                                    @click="openAuditDialog(row.id, 'reject')" class="reject-button">
+                                    拒绝
+                                </el-button>
+                                <el-button v-if="row.status === 'APPROVED'" type="info" size="small"
+                                    @click="openDisburseDialog(row)" class="loan-button">
+                                    放款
+                                </el-button>
+                                <el-button v-if="row.status === 'DISBURSED'" type="primary" size="small"
+                                    @click="showRepaymentPlan(row.id)" class="plan-button">
+                                    还款计划
+                                </el-button>
+                                <el-button v-if="row.status === 'DISBURSED'" type="primary" size="small"
+                                    @click="downloadContract(row.id)" class="contract-button">
+                                    下载合同
+                                </el-button>
+                            </div>
+                        </template>
+                    </el-table-column>
+                </el-table>
+            </div>
+
+            <div class="pagination-container">
+                <el-pagination :current-page="currentPage" :page-size="pageSize" :total="totalItems"
+                    :page-sizes="[5, 10, 20, 50]" layout="total, sizes, prev, pager, next, jumper"
+                    @current-change="handlePageChange" @size-change="handlePageSizeChange" class="custom-pagination" />
+            </div>
+        </el-card>
 
         <!-- 申请详情对话框 -->
-        <el-dialog v-model="dialogVisible" title="贷款申请详情" width="800px">
+        <el-dialog v-model="dialogVisible" title="贷款申请详情" width="700px" class="application-detail-dialog">
             <el-descriptions :column="2" border v-if="selectedApplication">
                 <el-descriptions-item label="用户信息" :span="2">
                     <div class="detail-section">
+                        <div>用户ID: {{ selectedApplication.user_id }}</div>
                         <div>用户名: {{ selectedApplication.user.username }}</div>
                         <div>手机: {{ selectedApplication.user.phone }}</div>
                         <div>邮箱: {{ selectedApplication.user.email }}</div>
@@ -424,7 +437,8 @@ watch(() => route.query.applyId, (newId) => {
         </el-dialog>
 
         <!-- 审批对话框 -->
-        <el-dialog v-model="auditDialogVisible" :title="`贷款申请${auditAction === 'approve' ? '通过' : '拒绝'}`" width="500px">
+        <el-dialog v-model="auditDialogVisible" :title="`贷款申请${auditAction === 'approve' ? '通过' : '拒绝'}`" width="500px"
+            class="audit-dialog">
             <el-form>
                 <el-form-item label="审批备注" v-if="auditAction === 'reject'">
                     <el-input v-model="comment" type="textarea" :rows="3" placeholder="请输入拒绝原因" />
@@ -436,15 +450,16 @@ watch(() => route.query.applyId, (newId) => {
 
             <template #footer>
                 <el-button @click="auditDialogVisible = false">取消</el-button>
-                <el-button type="primary" @click="handleAudit" :disabled="auditAction === 'reject' && !comment">
+                <el-button type="primary" @click="handleAudit" :disabled="auditAction === 'reject' && !comment"
+                    class="confirm-button">
                     确认{{ auditAction === 'approve' ? '通过' : '拒绝' }}
                 </el-button>
             </template>
         </el-dialog>
 
-
         <!-- 放款对话框 -->
-        <el-dialog v-model="loanDialogVisible" title="放款操作" width="500px" :close-on-click-modal="false">
+        <el-dialog v-model="loanDialogVisible" title="放款操作" width="500px" class="loan-dialog"
+            :close-on-click-modal="false">
             <el-form label-width="100px">
                 <el-form-item label="申请金额">
                     <el-input :value="currentApplication?.amount.toFixed(2).toLocaleString()" disabled
@@ -465,14 +480,15 @@ watch(() => route.query.applyId, (newId) => {
 
             <template #footer>
                 <el-button @click="loanDialogVisible = false">取消</el-button>
-                <el-button type="primary" @click="handleLoan">
+                <el-button type="primary" @click="handleLoan" class="confirm-button">
                     确认放款
                 </el-button>
             </template>
         </el-dialog>
 
         <!-- 还款计划详情 -->
-        <el-dialog v-model="repaymentDialogVisible" title="还款计划详情" width="800px" :close-on-click-modal="false">
+        <el-dialog v-model="repaymentDialogVisible" title="还款计划详情" width="700px" class="repayment-dialog"
+            :close-on-click-modal="false">
             <el-skeleton :loading="repaymentLoading" animated>
                 <template #template>
                     <el-skeleton-item variant="text" style="width: 30%" />
@@ -537,114 +553,342 @@ watch(() => route.query.applyId, (newId) => {
 </template>
 
 <style scoped>
-.container {
-    padding: 20px;
-    background: #fff;
-    border-radius: 4px;
-    box-shadow: 0 2px 12px rgba(0, 0, 0, .1);
+/* 全局表格样式调整 */
+.el-table {
+    --el-table-header-bg-color: #f8fafc;
+    --el-table-text-color: #64748b;
+    --el-table-row-hover-bg-color: #f5f7fa;
 }
 
-.filter-box {
-    margin-bottom: 20px;
+/* 表头单元格样式 */
+:deep(.el-table th.el-table__cell) {
+    text-align: center !important;
+    font-weight: 600;
+    padding: 12px 0;
 }
 
-.pagination-container {
-    margin-top: 20px;
+/* 表格内容单元格样式 */
+:deep(.el-table td.el-table__cell) {
+    padding: 12px 0;
+}
+
+/* 表格列对齐方式 */
+:deep(.el-table .el-table__cell) {
+    text-align: center !important;
+}
+
+/* 特定列左对齐 */
+:deep(.el-table .username-column .cell),
+:deep(.el-table .amount-column .cell) {
+    text-align: left !important;
+    padding-left: 16px;
+}
+
+/* 操作列固定右对齐 */
+:deep(.el-table .action-column .cell) {
+    text-align: right !important;
+    padding-right: 16px;
+}
+
+/* 调整操作列按钮间距 */
+.action-buttons {
     display: flex;
+    gap: 8px;
     justify-content: flex-end;
 }
 
+/* 用户信息单元格样式 */
+.user-info-cell {
+    display: flex;
+    align-items: center;
+    justify-content: flex-start;
+    padding-left: 16px;
+}
+
+/* 金额样式 */
+.amount-info {
+    display: flex;
+    align-items: center;
+    justify-content: flex-start;
+    padding-left: 16px;
+}
+
+/* 状态标签样式 */
+.status-tag {
+    border-radius: 12px;
+    padding: 0 10px;
+    font-weight: 500;
+    min-width: 60px;
+    display: inline-block;
+    text-align: center;
+}
+
+/* 表格行悬停效果 */
+:deep(.el-table__body tr:hover>td) {
+    background-color: #f1f5f9 !important;
+}
+
+/* 主容器样式 */
+.approval-management-container {
+    display: flex;
+    justify-content: center;
+    min-height: 80vh;
+    padding: 30px;
+    background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
+}
+
+.management-card {
+    width: 100%;
+    max-width: 1500px;
+    border: none;
+    border-radius: 16px;
+    overflow: hidden;
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
+    transition: transform 0.3s ease, box-shadow 0.3s ease;
+}
+
+.management-card:hover {
+    transform: translateY(-5px);
+    box-shadow: 0 15px 35px rgba(0, 0, 0, 0.15);
+}
+
+.card-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 20px 25px;
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+}
+
+.management-title {
+    font-size: 1.5rem;
+    color: white;
+    font-weight: 600;
+    margin: 0;
+}
+
+.header-actions {
+    display: flex;
+    align-items: center;
+    gap: 15px;
+}
+
+.search-input {
+    width: 200px;
+}
+
+.search-input :deep(.el-input__inner) {
+    background-color: rgba(255, 255, 255, 0.2);
+    border: none;
+    color: rgb(6, 0, 0);
+}
+
+.search-input :deep(.el-input__inner::placeholder) {
+    color: rgba(0, 0, 0, 0.7);
+}
+
+.search-input :deep(.el-input__suffix) {
+    color: white;
+}
+
+.status-select {
+    width: 160px;
+}
+
+.status-select :deep(.el-input__inner) {
+    background-color: rgba(255, 255, 255, 0.2);
+    border: none;
+    color: white;
+}
+
+.status-select :deep(.el-input__inner::placeholder) {
+    color: rgba(255, 255, 255, 0.7);
+}
+
+.status-select :deep(.el-input__suffix) {
+    color: white;
+}
+
+.table-container {
+    padding: 0 20px;
+}
+
+/* 按钮样式 */
+.detail-button {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    border: none;
+    border-radius: 8px;
+}
+
+.approve-button {
+    background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
+    border: none;
+    border-radius: 8px;
+}
+
+.reject-button {
+    background: linear-gradient(135deg, #ff758c 0%, #ff7eb3 100%);
+    border: none;
+    border-radius: 8px;
+}
+
+.loan-button {
+    background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
+    border: none;
+    border-radius: 8px;
+}
+
+.plan-button {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    border: none;
+    border-radius: 8px;
+}
+
+.contract-button {
+    background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
+    border: none;
+    border-radius: 8px;
+}
+
+.confirm-button {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    border: none;
+    border-radius: 8px;
+}
+
+.pagination-container {
+    padding: 20px;
+    display: flex;
+    justify-content: center;
+}
+
+.custom-pagination :deep(.btn-prev),
+.custom-pagination :deep(.btn-next),
+.custom-pagination :deep(.number) {
+    border-radius: 8px;
+    margin: 0 4px;
+}
+
+.custom-pagination :deep(.el-pager li.active) {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
+}
+
+.application-detail-dialog :deep(.el-dialog) {
+    border-radius: 16px;
+    overflow: hidden;
+}
+
+.application-detail-dialog :deep(.el-dialog__header) {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    margin: 0;
+    padding: 20px;
+}
+
+.application-detail-dialog :deep(.el-dialog__title) {
+    color: white;
+}
+
+.application-detail-dialog :deep(.el-dialog__headerbtn .el-dialog__close) {
+    color: white;
+}
+
+.audit-dialog :deep(.el-dialog),
+.loan-dialog :deep(.el-dialog),
+.repayment-dialog :deep(.el-dialog) {
+    border-radius: 16px;
+    overflow: hidden;
+}
+
+.audit-dialog :deep(.el-dialog__header),
+.loan-dialog :deep(.el-dialog__header),
+.repayment-dialog :deep(.el-dialog__header) {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    margin: 0;
+    padding: 20px;
+}
+
+.audit-dialog :deep(.el-dialog__title),
+.loan-dialog :deep(.el-dialog__title),
+.repayment-dialog :deep(.el-dialog__title) {
+    color: white;
+}
+
+.audit-dialog :deep(.el-dialog__headerbtn .el-dialog__close),
+.loan-dialog :deep(.el-dialog__headerbtn .el-dialog__close),
+.repayment-dialog :deep(.el-dialog__headerbtn .el-dialog__close) {
+    color: white;
+}
+
+:deep(.el-dialog__body) {
+    padding: 20px 25px;
+}
+
 .detail-section {
-    line-height: 1.8;
     padding: 10px;
 }
 
-.detail-section div {
-    padding: 4px 0;
+.error-message {
+    color: #f56c6c;
+    font-size: 12px;
+    margin-top: 5px;
 }
 
-/* 样式优化 */
 .shake-animation {
-    animation: shake 0.5s cubic-bezier(.36, .07, .19, .97) both;
-    border-color: #ff4d4f;
+    animation: shake 0.5s;
 }
 
 @keyframes shake {
 
-    10%,
-    90% {
-        transform: translateX(-2px);
+    0%,
+    100% {
+        transform: translateX(0);
     }
 
     20%,
-    80% {
-        transform: translateX(3px);
-    }
-
-    30%,
-    50%,
-    70% {
+    60% {
         transform: translateX(-5px);
     }
 
     40%,
-    60% {
+    80% {
         transform: translateX(5px);
     }
 }
 
-.error-message {
-    color: #ff4d4f;
-    font-size: 12px;
-    margin-top: 4px;
-}
-
-:deep(.has-error .el-input-number) {
-    --el-input-border-color: #ff4d4f;
-}
-
-:deep(.has-error .el-input-number:focus-within) {
-    --el-input-border-color: #ff4d4f;
-    --el-input-focus-border-color: #ff7875;
-}
-
-:deep(.el-descriptions__body) {
-    background: #f8f9fa;
-}
-
-:deep(.el-descriptions__header) {
-    margin-bottom: 10px;
-}
-
-.repayment-status {
-    margin: 15px 0;
-    padding: 10px;
-    background: #f8f9fa;
-    border-radius: 4px;
-
-    &-title {
-        font-weight: 500;
-        margin-bottom: 8px;
+@media (max-width: 992px) {
+    .management-card {
+        max-width: 100%;
     }
 
-    &-detail {
-        display: grid;
-        grid-template-columns: repeat(2, 1fr);
+    .table-container {
+        overflow-x: auto;
+    }
+
+    .application-detail-dialog,
+    .audit-dialog,
+    .loan-dialog,
+    .repayment-dialog {
+        width: 95% !important;
+    }
+
+    .header-actions {
+        flex-direction: column;
+        align-items: flex-start;
         gap: 10px;
-
-        &-item {
-            display: flex;
-            justify-content: space-between;
-            padding: 6px 0;
-
-            &-label {
-                color: #666;
-            }
-
-            &-value {
-                font-weight: 500;
-            }
-        }
     }
+
+    .search-input,
+    .status-select {
+        width: 100%;
+    }
+}
+</style>
+
+<style>
+.status-select-dropdown {
+    border-radius: 12px !important;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1) !important;
+    border: none !important;
 }
 </style>

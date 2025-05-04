@@ -58,7 +58,7 @@ onMounted(fetchAllStatistics);
 </script>
 
 <template>
-  <div>
+  <div class="statistics-container">
     <el-date-picker
       v-model="dateRange"
       type="daterange"
@@ -66,23 +66,21 @@ onMounted(fetchAllStatistics);
       start-placeholder="开始日期"
       end-placeholder="结束日期"
       @change="handleDateChange"
-      style="margin-bottom: 24px;"
+      class="date-picker"
     />
 
-    <div style="display: flex; gap: 20px; flex-wrap: wrap">
-      <div class="card" style="flex: 1;">
-        <h3>贷款申请统计</h3>
+    <div class="statistics-content">
+      <div class="card">
+        <h3 class="card-title">贷款申请统计</h3>
         <el-row :gutter="16">
           <el-col :span="8" v-for="(item, idx) in applyList" :key="idx">
             <div class="statistic-card">
               <el-statistic :value="item.value">
                 <template #title>
-                  <div style="display: inline-flex; align-items: center">
+                  <div class="statistic-title">
                     {{ item.title }}
                     <el-tooltip :content="item.tip" placement="top">
-                      <el-icon style="margin-left: 4px" :size="12">
-                        <Warning />
-                      </el-icon>
+                      <el-icon class="tip-icon"><Warning /></el-icon>
                     </el-tooltip>
                   </div>
                 </template>
@@ -90,7 +88,7 @@ onMounted(fetchAllStatistics);
               <div class="statistic-footer">
                 <div class="footer-item">
                   <span>环比增长</span>
-                  <span :class="item.trend >= 0 ? 'green' : 'red'">
+                  <span :class="item.trend >= 0 ? 'up' : 'down'">
                     {{ Math.abs(item.trend) }}%
                     <el-icon>
                       <component :is="item.trend >= 0 ? CaretTop : CaretBottom" />
@@ -103,19 +101,17 @@ onMounted(fetchAllStatistics);
         </el-row>
       </div>
 
-      <div class="card" style="flex: 1;">
-        <h3>还款统计</h3>
+      <div class="card">
+        <h3 class="card-title">还款统计</h3>
         <el-row :gutter="16">
           <el-col :span="8" v-for="(item, idx) in repayList" :key="idx">
             <div class="statistic-card">
               <el-statistic :value="item.value">
                 <template #title>
-                  <div style="display: inline-flex; align-items: center">
+                  <div class="statistic-title">
                     {{ item.title }}
                     <el-tooltip :content="item.tip" placement="top">
-                      <el-icon style="margin-left: 4px" :size="12">
-                        <Warning />
-                      </el-icon>
+                      <el-icon class="tip-icon"><Warning /></el-icon>
                     </el-tooltip>
                   </div>
                 </template>
@@ -123,7 +119,7 @@ onMounted(fetchAllStatistics);
               <div class="statistic-footer">
                 <div class="footer-item">
                   <span>环比增长</span>
-                  <span :class="item.trend >= 0 ? 'green' : 'red'">
+                  <span :class="item.trend >= 0 ? 'up' : 'down'">
                     {{ Math.abs(item.trend) }}%
                     <el-icon>
                       <component :is="item.trend >= 0 ? CaretTop : CaretBottom" />
@@ -140,28 +136,80 @@ onMounted(fetchAllStatistics);
 </template>
 
 <style scoped>
-.card {
-  background: #fff;
-  border-radius: 12px;
-  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.05);
-  padding: 24px;
-  margin-bottom: 24px;
+/* 主容器 */
+.statistics-container {
+  padding: 30px;
+  background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
+  min-height: 80vh
 }
 
+/* 日期选择器 */
+.date-picker {
+  margin-bottom: 24px;
+  width: 100%;
+  max-width: 400px;
+}
+
+/* 内容区域 */
+.statistics-content {
+  display: flex;
+  gap: 20px;
+  flex-wrap: wrap;
+}
+
+/* 卡片样式 */
+.card {
+  flex: 1;
+  background: #fff;
+  border-radius: 12px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+  padding: 24px;
+  margin-bottom: 24px;
+  transition: transform 0.3s ease, box-shadow 0.3s ease;
+}
+
+.card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 16px rgba(0, 0, 0, 0.12);
+}
+
+.card-title {
+  font-size: 1.25rem;
+  color: #2c3e50;
+  margin-top: 0;
+  margin-bottom: 16px;
+  font-weight: 600;
+}
+
+/* 统计卡片 */
 .statistic-card {
-  background: linear-gradient(135deg, #f0f4f8, #ffffff);
-  border-radius: 16px;
+  background: linear-gradient(135deg, #f8fafc, #ffffff);
+  border-radius: 12px;
   padding: 20px;
   margin-bottom: 20px;
-  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.05);
-  transition: transform 0.2s ease, box-shadow 0.2s ease;
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.05);
+  transition: all 0.3s ease;
 }
 
 .statistic-card:hover {
-  transform: translateY(-4px);
-  box-shadow: 0 12px 24px rgba(0, 0, 0, 0.1);
+  transform: translateY(-3px);
+  box-shadow: 0 8px 16px rgba(0, 0, 0, 0.1);
 }
 
+.statistic-title {
+  display: inline-flex;
+  align-items: center;
+  font-size: 14px;
+  color: #64748b;
+}
+
+.tip-icon {
+  margin-left: 6px;
+  color: #64748b;
+  cursor: pointer;
+}
+
+/* 统计底部 */
 .statistic-footer {
   margin-top: 12px;
   display: flex;
@@ -177,13 +225,27 @@ onMounted(fetchAllStatistics);
   gap: 4px;
 }
 
-.green {
+/* 趋势指示器 */
+.up {
   color: #21ba45;
-  font-weight: bold;
+  font-weight: 500;
 }
 
-.red {
-  color: #db2828; 
-  font-weight: bold;
+.down {
+  color: #db2828;
+  font-weight: 500;
+}
+</style>
+
+<style>
+/* 全局统计数字样式 */
+.statistics-container .el-statistic__content {
+  font-size: 24px;
+  font-weight: 600;
+  color: #2c3e50;
+}
+
+.statistics-container .el-statistic__head {
+  font-size: 14px;
 }
 </style>
