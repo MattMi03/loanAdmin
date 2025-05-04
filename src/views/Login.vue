@@ -1,4 +1,4 @@
-<template>
+  <template>
   <div class="login-container">
     <div class="login-box">
       <div class="login-left">
@@ -66,6 +66,7 @@ import { ElMessage } from 'element-plus';
 import { User, Lock, Reading } from '@element-plus/icons-vue';
 import { useRouter } from 'vue-router';
 import { login } from '@/api/user';
+import { loginAPI } from '@/api/adminApi'; 
 
 const router = useRouter();
 
@@ -91,22 +92,42 @@ const loading = ref(false);
 
 const handleLogin = async () => {
   if (!formRef.value) return;
-  
+
   await formRef.value.validate(async (valid) => {
     if (valid) {
       loading.value = true;
       try {
-        const result = await login(form.value);
+        const result = await loginAPI(form.value);
+        localStorage.setItem('token', result.token); // 假设返回的 token 在 data.token 中
         ElMessage.success('登录成功');
         router.push('/manager/home');
       } catch (error) {
-        // 错误处理已在响应拦截器中完成
+        ElMessage.error('登录失败，请检查用户名和密码');
       } finally {
         loading.value = false;
       }
     }
   });
 };
+
+// const handleLogin = async () => {
+//   if (!formRef.value) return;
+  
+//   await formRef.value.validate(async (valid) => {
+//     if (valid) {
+//       loading.value = true;
+//       try {
+//         const result = await login(form.value);
+//         ElMessage.success('登录成功');
+//         router.push('/manager/home');
+//       } catch (error) {
+//         // 错误处理已在响应拦截器中完成
+//       } finally {
+//         loading.value = false;
+//       }
+//     }
+//   });
+// };
 </script>
 
 <style scoped>

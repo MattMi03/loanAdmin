@@ -56,15 +56,29 @@ const formRules = {
 const fetchProducts = async () => {
     loading.value = true;
     try {
-        const data = await fetchProductAPI(currentPage.value, pageSize.value, filterStatus.value);
+        const response = await fetchProductAPI(currentPage.value, pageSize.value, filterStatus.value);
 
-        products.value = data.loanProductions.map(product => ({
-            ...product,
-            minAmount: Number(product.minAmount) / 100,
-            maxAmount: Number(product.maxAmount) / 100,
+        const fieldMap = response.data.meta?.field_map;
+        if (!fieldMap) {
+            throw new Error("字段映射信息缺失");
+        }
+
+        const productsData = response.data.product;
+        products.value = Object.entries(productsData).map(([id, product]) => ({
+            id: Number(id),
+            name: product[fieldMap["product_name"]],
+            minAmount: product[fieldMap["amount_range.min"]] / 100,
+            maxAmount: product[fieldMap["amount_range.max"]] / 100,
+            minTerm: product[fieldMap["term_range.min"]],
+            maxTerm: product[fieldMap["term_range.max"]],
+            minRate: product[fieldMap["rate_range.min"]],
+            maxRate: product[fieldMap["rate_range.max"]],
+            status: product[fieldMap["product_status"]],
+            createTime: product[fieldMap["created_at"]],
+            updateTime: product[fieldMap["updated_at"]],
         }));
 
-        totalItems.value = data.totalItems;
+        totalItems.value = response.data.pagination.total_items;
     } catch (error) {
         ElMessage.error("获取产品列表失败: " + error.message);
     } finally {
@@ -99,6 +113,7 @@ const submitForm = async () => {
 
 const toggleProductStatus = async (id, targetStatus) => {
     try {
+        // console.log(`切换产品 ${id} 状态为 ${targetStatus}`);
         await toggleProductStatusAPI(id, targetStatus);
         ElMessage.success(`产品已${targetStatus === 'ONLINE' ? '上线' : '下线'}`);
         const product = products.value.find(p => p.id === id);
@@ -187,30 +202,20 @@ onMounted(fetchProducts);
             <el-table :data="products" v-loading="loading" ref="tableRef" stripe>
                 <el-table-column prop="id" label="产品ID" />
                 <el-table-column prop="name" label="产品名称" />
-                <el-table-column label="最小金额" >
+                <el-table-column label="最小金额">
                     <template #default="{ row }">
-                        ¥{{ (row.minAmount ).toFixed(2) }}
+                        ¥{{ (row.minAmount).toFixed(2) }}
                     </template>
                 </el-table-column>
                 <el-table-column label="最大金额">
                     <template #default="{ row }">
-                        ¥{{ (row.maxAmount ).toFixed(2) }}
+                        ¥{{ (row.maxAmount).toFixed(2) }}
                     </template>
                 </el-table-column>
                 <el-table-column prop="minTerm" label="最短期限(月)" />
                 <el-table-column prop="maxTerm" label="最长期限(月)" />
-                <el-table-column prop="minRate" label="最低利率(年利率)" />
-                <el-table-column prop="maxRate" label="最高利率(年利率)" />
-                <el-table-column prop="createTime" label="创建时间">
-                    <template #default="{ row }">
-                        {{ new Date(row.createTime).toLocaleString() }}
-                    </template>
-                </el-table-column>
-                <el-table-column prop="updateTime" label="更新时间">
-                    <template #default="{ row }">
-                        {{ new Date(row.updateTime).toLocaleString() }}
-                    </template>
-                </el-table-column>
+                <el-table-column prop="minRate" label="最低年利率" />
+                <el-table-column prop="maxRate" label="最高年利率" />
                 <el-table-column prop="status" label="状态">
                     <template #default="{ row }">
                         <el-tag :type="row.status === 'ONLINE' ? 'success' : 'danger'">

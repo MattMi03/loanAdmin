@@ -21,17 +21,20 @@ const routes = [
     component: () => import('../views/Dashboard.vue'),
     meta: { requiresAuth: true }
   },
-  {path: '/manager', component: import('../views/Manager.vue'),
+  {
+    path: '/manager', component: import('../views/Manager.vue'),
     children: [
-      {path: 'home', component: import('../views/Home.vue'),},
-      {path: 'product', component: import('../views/Product.vue'),},
-      {path: 'approve', component: import('../views/Approve.vue'),},
-      {path: 'risk', component: import('../views/Risk.vue'),},
-      {path: 'feedback', component: import('../views/Feedback.vue'),},
-      {path: 'setting', component: import('../views/Setting.vue'),},
-      {path: 'limit', component: import('../views/Limit.vue'),},
+      { path: 'home', component: import('../views/Home.vue'), },
+      { path: 'user', component: import('../views/User.vue'), },
+      { path: 'product', component: import('../views/Product.vue'), },
+      { path: 'approve', component: import('../views/Approve.vue'), },
+      { path: 'feedback', component: import('../views/Feedback.vue'), },
+      { path: 'setting', component: import('../views/Setting.vue'), },
+      { path: 'limit', component: import('../views/Limit.vue'), },
+      { path: 'selfinfo', component: import('../views/SelfInfo.vue'), },
     ]
   },
+
 ]
 
 const router = createRouter({

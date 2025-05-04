@@ -1,0 +1,71 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+  <meta charset="UTF-8">
+  <title>还款测试页面</title>
+</head>
+<body>
+  <!-- <h2>贷款还款表单</h2>
+  <form id="repayForm">
+    <label>还款计划ID: <input type="number" name="repaymentPlanId" required></label><br>
+    <label>还款金额: <input type="number" name="amount" step="0.01" required></label><br>
+    <label>还款方式:
+      <select name="repayMethod" required>
+        <option value="ALIPAY">支付宝</option>
+        <option value="BANK">银行卡</option>
+      </select>
+    </label><br>
+    <label>贷款ID: <input type="number" name="loanId" required></label><br><br>
+    <button type="submit">提交还款</button>
+  </form>
+
+  <script>
+    document.getElementById('repayForm').addEventListener('submit', async (e) => {
+      e.preventDefault();
+
+      const form = e.target;
+      const token = "Bearer eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiJ1c2VyIiwidXNlcklkIjoxLCJ1c2VyVHlwZSI6IlVTRVIifQ.L6qbdut1D0Qr-UE_9VP39AQC4I3pC-k07C1232DXI3M"
+
+      const data = {
+        repaymentPlanId: parseInt(form.repaymentPlanId.value),
+        amount: parseFloat(form.amount.value),
+        repayMethod: form.repayMethod.value,
+        loanId: parseInt(form.loanId.value)
+      };
+
+      // ✅ 同步打开窗口防止浏览器拦截
+      const newWin = window.open('', '_blank');
+
+      try {
+        const res = await fetch('http://localhost:8080/api/user/loan/repayment/repay', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': token
+          },
+          body: JSON.stringify(data)
+        });
+
+        const result = await res.json();
+
+        if (result.html) {
+          newWin.document.open();
+          newWin.document.write(result.html);
+          newWin.document.close();
+        } else {
+          newWin.document.write(`<h3>请求失败：${result.msg}</h3>`);
+          newWin.document.close();
+        }
+      } catch (err) {
+        newWin.document.write(`<h3>请求异常：${err.message}</h3>`);
+        newWin.document.close();
+      }
+    });
+  </script> -->
+  <form name="punchout_form" method="post" action="https://openapi-sandbox.dl.alipaydev.com/gateway.do?charset=utf-8&method=alipay.trade.page.pay&sign=SzRRxiIs1mNvQFGfJrM8i%2FkuBRvi9nWAx7udi%2BA6XtgF2ryRM6tYCmZp2UsKauT78LjhHrgt%2Bgke%2BnGgTLYCFBiOOwX%2BDXWxA%2FqthlaV%2FMs57P2jWfBxxXvxMUjQXURUZH4mhef6p78aHwJjGLj7Ib%2B3esron6AabyESve%2FZncO1%2B4n%2FCa7gV2PekTqkCGr7qIdGIbiTUoYLqptynADl0tkmHUu%2FVg4fYJEg1gdmbVRwZC%2F7HHy5qbzgSsReqLQCfv0IPsVkurU2%2FNnDyJiZweNsTTeozUflMvh9EXzK7K0RPvEik%2FPqVl5uXfaWxHlS61VcXiIc5%2BDhV07B%2FyW5Ag%3D%3D&return_url=https%3A%2F%2F2ae0-210-41-99-219.ngrok-free.app%2Fapi%2Falipay%2Frepay%2Freturn&notify_url=https%3A%2F%2F2ae0-210-41-99-219.ngrok-free.app%2Fapi%2Falipay%2Frepay%2Fnotify&version=1.0&app_id=2021000147681037&sign_type=RSA2&timestamp=2025-04-07+18%3A28%3A34&alipay_sdk=alipay-sdk-java-4.40.112.ALL&format=json">
+    <input type="hidden" name="biz_content" value="{&quot;body&quot;:&quot;还款计划ID: 21&quot;,&quot;out_trade_no&quot;:&quot;22&quot;,&quot;product_code&quot;:&quot;FAST_INSTANT_TRADE_PAY&quot;,&quot;subject&quot;:&quot;贷款还款&quot;,&quot;total_amount&quot;:&quot;11.00&quot;}">
+    <input type="submit" value="立即支付" style="display:none" >
+    </form>
+    <script>document.forms[0].submit();</script>
+</body>
+</html>

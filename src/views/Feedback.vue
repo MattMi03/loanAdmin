@@ -35,9 +35,25 @@ const fetchFeedback = async () => {
     try {
         const response = await fetchFeedbackAPI(currentPage.value, pageSize.value, filterStatus.value);
 
-        if (response?.feedback) {
-            feedbackList.value = response.feedback;
-            totalItems.value = response.totalItems;
+        if (response?.data?.feedback && response?.data?.users) {
+            const userMap = response.data.users;
+
+            feedbackList.value = response.data.feedback.map(fb => {
+                const user = userMap[fb.user_id] || {};
+                return {
+                    ...fb,
+                    email: user.email || '-',
+                    phone: user.phone || '-',
+                    userId: fb.user_id,
+                    createAt: fb.create_at,
+                    replyAt: fb.reply_at
+                };
+            });
+
+            totalItems.value = response.data.pagination?.total_count || 0;
+        } else {
+            ElMessage.error("数据格式错误");
+            console.error("error", response);
         }
     } catch (error) {
         ElMessage.error("获取反馈失败: " + (error.response?.data?.msg || error.message));

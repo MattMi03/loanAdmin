@@ -1,8 +1,17 @@
 <script setup>
-import { ref, onMounted } from 'vue';
-import axios from 'axios';
+import { watch, ref, onMounted, onBeforeUnmount } from 'vue';
+import { useRoute } from 'vue-router';
 import { ElMessage, ElTag, ElDialog, ElDescriptions, ElDescriptionsItem } from 'element-plus';
-import { fetchApplicationAPI, auditApplicationAPI, loanApplicationAPI, getRepaymentPlanAPI } from '@/api/adminApi';
+import { fetchApplicationAPI, auditApplicationAPI, loanApplicationAPI, getRepaymentPlanAPI, fetchApplicationByUserIdAPI, fetchApplicationByIdAPI, downloadContractAPI } from '@/api/adminApi';
+
+const route = useRoute();
+const userIdFromRoute = route.query.userId;
+const storedUserId = localStorage.getItem('userId');
+const userId = ref(storedUserId === 'CLEAR' ? '' : storedUserId || userIdFromRoute || '');
+
+const applyIdFromRoute = route.query.applyId;
+const storedApplyId = localStorage.getItem('applyId');
+const applyId = ref(storedApplyId === 'CLEAR' ? '' : storedApplyId || applyIdFromRoute || '');
 
 const applications = ref([]);
 const currentPage = ref(1);
@@ -37,24 +46,47 @@ const statusMap = {
 const fetchApplications = async () => {
     loading.value = true;
     try {
-        const response = await fetchApplicationAPI(currentPage.value, pageSize.value, filterStatus.value);
+        let response;
 
-        if (response?.loanApplications) {
-            applications.value = response.loanApplications.map(app => {
-                const { minAmount, maxAmount } = app.product;
+        if (applyId.value) {
+            response = await fetchApplicationByIdAPI(applyId.value);
+        }
+        else
+            if (userId.value) {
+                response = await fetchApplicationByUserIdAPI(userId.value, currentPage.value, pageSize.value, filterStatus.value);
+            } else {
+                response = await fetchApplicationAPI(currentPage.value, pageSize.value, filterStatus.value);
+            }
+
+        const { loanApplications, users, product, pagination } = response.data || {};
+
+        if (loanApplications && users && product) {
+            const userMap = users;
+            const productMap = product;
+
+            applications.value = loanApplications.map(app => {
+                const user = userMap[app.user_id] || {};
+                const product = productMap[app.product_id] || {};
+
                 return {
                     ...app,
-                    product: {
-                        ...app.product,
-                        minAmount: Number(minAmount) / 100,
-                        maxAmount: Number(maxAmount) / 100
-                    },
                     amount: Number(app.amount) / 100,
                     createTime: formatDate(app.createTime),
-                    updateTime: formatDate(app.updateTime)
+                    updateTime: formatDate(app.updateTime),
+                    interestRate: Number(app.interestRate),
+                    user,
+                    product: {
+                        ...product,
+                        minAmount: Number(product.minAmount) / 100,
+                        maxAmount: Number(product.maxAmount) / 100,
+                        minRate: Number(product.minRate),
+                        maxRate: Number(product.maxRate)
+                    }
                 };
             });
-            totalItems.value = response.totalItems;
+
+
+            totalItems.value = pagination?.total_count || 0;
         }
     } catch (error) {
         ElMessage.error('获取申请失败: ' + (error.response?.msg || error.message));
@@ -147,6 +179,26 @@ const showRepaymentPlan = async (loanId) => {
     }
 };
 
+
+const downloadContract = async (applyId) => {
+    try {
+        const fileData = await downloadContractAPI(applyId)
+        const blob = new Blob([fileData], { type: 'application/pdf' })
+
+        const url = window.URL.createObjectURL(blob)
+        const link = document.createElement('a')
+        link.href = url
+        link.setAttribute('download', `loan_contract_${applyId}.pdf`) 
+        document.body.appendChild(link)
+        link.click()
+
+        document.body.removeChild(link)
+        window.URL.revokeObjectURL(url)
+    } catch (error) {
+        console.error("下载合同失败：", error.message)
+    }
+}
+
 const openAuditDialog = (id, action) => {
     currentApplyId.value = id;
     auditAction.value = action;
@@ -193,7 +245,55 @@ const handleStatusChange = () => {
     fetchApplications();
 };
 
+const clearUserId = () => {
+    userId.value = '';
+    localStorage.setItem('userId', 'CLEAR');
+    fetchApplications();
+};
+
+const handleUserIdInputChange = (value) => {
+    userId.value = value;
+    if (value) {
+        localStorage.setItem('userId', value);
+    } else {
+        localStorage.setItem('userId', 'CLEAR');
+    }
+    fetchApplications();
+};
+
+const clearApplyId = () => {
+    applyId.value = '';
+    localStorage.setItem('applyId', 'CLEAR');
+    fetchApplications();
+};
+
+const handleApplyIdInputChange = (value) => {
+    applyId.value = value;
+    if (value) {
+        localStorage.setItem('applyId', value);
+    } else {
+        localStorage.setItem('applyId', 'CLEAR');
+    }
+    fetchApplications();
+};
+
 onMounted(fetchApplications);
+
+onBeforeUnmount(() => {
+    localStorage.removeItem('userId');
+    localStorage.removeItem('applyId');
+});
+
+watch(() => route.query.applyId, (newId) => {
+    applyId.value = newId || '';
+    if (newId) {
+        localStorage.setItem('applyId', newId);
+    } else {
+        localStorage.setItem('applyId', 'CLEAR');
+    }
+    fetchApplications();
+});
+
 </script>
 
 <template>
@@ -206,6 +306,10 @@ onMounted(fetchApplications);
                 ]" :key="item.value" :label="item.label" :value="item.value" />
             </el-select>
         </div>
+        <el-input v-model="userId" placeholder="输入用户ID" clearable @clear="clearUserId" @input="handleUserIdInputChange"
+            style="width: 200px; margin-bottom: 20px;"></el-input>
+        <el-input v-model="applyId" placeholder="输入申请ID" clearable @clear="clearApplyId"
+            @input="handleApplyIdInputChange" style="width: 200px; margin-bottom: 20px;"></el-input>
 
         <el-table :data="applications" v-loading="loading" style="width: 100%" stripe>
             <el-table-column prop="id" label="申请ID" />
@@ -241,11 +345,6 @@ onMounted(fetchApplications);
                     {{ new Date(row.createTime).toLocaleString() }}
                 </template>
             </el-table-column>
-            <el-table-column prop="updateTime" label="更新时间">
-                <template #default="{ row }">
-                    {{ new Date(row.updateTime).toLocaleString() }}
-                </template>
-            </el-table-column>
             <el-table-column label="查看详情">
                 <template #default="{ row }">
                     <el-button type="primary" size="small" @click="showDetail(row)">
@@ -271,6 +370,10 @@ onMounted(fetchApplications);
                         <el-button v-if="row.status === 'DISBURSED'" type="primary" size="small"
                             @click="showRepaymentPlan(row.id)">
                             还款计划
+                        </el-button>
+                        <el-button v-if="row.status === 'DISBURSED'" type="primary" size="small"
+                            @click="downloadContract(row.id)">
+                            下载合同
                         </el-button>
                     </div>
                 </template>
@@ -309,6 +412,7 @@ onMounted(fetchApplications);
 
                 <el-descriptions-item label="申请详情" :span="2">
                     <div class="detail-section">
+                        <div>风险得分: {{ selectedApplication.riskScore.toFixed(2).toLocaleString() }}/100.00</div>
                         <div>申请金额: ￥{{ selectedApplication.amount.toFixed(2).toLocaleString() }}</div>
                         <div>贷款期限: {{ selectedApplication.term }}个月</div>
                         <div>适用利率: {{ (selectedApplication.interestRate * 100).toFixed(2) }}%</div>

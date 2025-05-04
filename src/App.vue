@@ -1,7 +1,9 @@
-
-
 <template>
-  <router-view></router-view>
+  <div id="app">
+    <div class="app-container">
+      <router-view />
+    </div>
+  </div>
 </template>
 
 <style>
@@ -27,4 +29,12 @@ body {
   background-color: var(--background-color);
 }
 
+#app {
+  height: 100vh;
+}
+
+.app-container {
+  height: 100%;
+  background-color: var(--background-color);
+}
 </style>
