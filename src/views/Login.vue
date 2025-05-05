@@ -99,6 +99,7 @@ const handleLogin = async () => {
       try {
         const result = await loginAPI(form.value);
         localStorage.setItem('token', result.token); // 假设返回的 token 在 data.token 中
+        localStorage.setItem('name', result.name); // 假设返回的用户名在 data.username 中
         ElMessage.success('登录成功');
         router.push('/manager/home');
       } catch (error) {
@@ -109,25 +110,6 @@ const handleLogin = async () => {
     }
   });
 };
-
-// const handleLogin = async () => {
-//   if (!formRef.value) return;
-  
-//   await formRef.value.validate(async (valid) => {
-//     if (valid) {
-//       loading.value = true;
-//       try {
-//         const result = await login(form.value);
-//         ElMessage.success('登录成功');
-//         router.push('/manager/home');
-//       } catch (error) {
-//         // 错误处理已在响应拦截器中完成
-//       } finally {
-//         loading.value = false;
-//       }
-//     }
-//   });
-// };
 </script>
 
 <style scoped>

@@ -5,7 +5,7 @@ import { fetchFeedbackAPI, submitFeedbackReplyAPI } from "@/api/adminApi";
 
 const feedbackList = ref([]);
 const currentPage = ref(1);
-const pageSize = ref(10);
+const pageSize = ref(5);
 const totalItems = ref(0);
 const loading = ref(false);
 const filterStatus = ref('all');
@@ -190,7 +190,7 @@ onMounted(fetchFeedback);
                         <template #default="{ row }">
                             <div class="action-buttons">
                                 <el-button type="primary" size="small" @click="showDetail(row)" class="detail-button">
-                                    查看详情
+                                    详情
                                 </el-button>
                                 <el-button v-if="row.status === 'PENDING'" type="success" size="small"
                                     @click="openReplyDialog(row)" class="reply-button">
@@ -373,6 +373,54 @@ onMounted(fetchFeedback);
 
 .table-container {
     padding: 0 20px;
+    height: calc(100vh - 450px); /* 固定高度，根据实际布局调整 */
+    display: flex;
+    flex-direction: column;
+}
+
+/* 表格包装器 */
+.table-wrapper {
+    flex: 1;
+    overflow: auto;
+    position: relative;
+}
+
+/* 表格样式 */
+:deep(.el-table) {
+    width: 100% !important;
+    table-layout: fixed;
+}
+
+/* 表头固定 */
+:deep(.el-table__header-wrapper) {
+    position: sticky;
+    top: 0;
+    z-index: 2;
+    background: #f8fafc;
+}
+
+/* 表格单元格内容不换行 */
+:deep(.el-table .cell) {
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+/* 分页样式 */
+.pagination-container {
+    padding: 15px 0;
+    background: white;
+    position: sticky;
+    bottom: 0;
+    z-index: 2;
+    border-top: 1px solid #ebeef5;
+}
+
+/* 响应式调整 */
+@media (max-width: 992px) {
+    .table-container {
+        height: calc(100vh - 350px); /* 移动端调整高度 */
+    }
 }
 
 /* 内容单元格样式 - 截断长文本 */

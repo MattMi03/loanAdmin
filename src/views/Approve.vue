@@ -190,7 +190,7 @@ const downloadContract = async (applyId) => {
         document.body.removeChild(link)
         window.URL.revokeObjectURL(url)
     } catch (error) {
-        console.error("下载合同失败：", error.message)
+        ElMessage.error('下载合同失败: ' + (error.response?.msg || error.message));
     }
 }
 
@@ -711,6 +711,38 @@ watch(() => route.query.applyId, (newId) => {
 
 .table-container {
     padding: 0 20px;
+    height: calc(100vh - 450px);
+    /* 固定高度，根据实际布局调整 */
+    display: flex;
+    flex-direction: column;
+}
+
+/* 表格包装器 */
+.table-wrapper {
+    flex: 1;
+    overflow: auto;
+    position: relative;
+}
+
+/* 表格样式 */
+:deep(.el-table) {
+    width: 100% !important;
+    table-layout: fixed;
+}
+
+/* 表头固定 */
+:deep(.el-table__header-wrapper) {
+    position: sticky;
+    top: 0;
+    z-index: 2;
+    background: #f8fafc;
+}
+
+/* 表格单元格内容不换行 */
+:deep(.el-table .cell) {
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
 }
 
 /* 按钮样式 */

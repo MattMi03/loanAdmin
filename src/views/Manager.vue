@@ -1,10 +1,12 @@
 <script setup>
-import { onMounted, ref } from 'vue'
+import { onMounted, ref, computed } from 'vue'
 import { useRouter } from 'vue-router'
 import { HomeFilled, Document, List, User, Message } from '@element-plus/icons-vue'
 import { ElMessage } from 'element-plus'
 import SockJS from 'sockjs-client/dist/sockjs'
 import Stomp from 'stompjs'
+
+const username = ref(localStorage.getItem('name') || '管理员')
 
 const messageCount = ref(0)
 const messageList = ref([])
@@ -15,22 +17,45 @@ const isSleeping = ref(false)
 const showSpeech = ref(false)
 const currentSpeech = ref('')
 
+const hungerLevel = ref(localStorage.getItem('hungerLevel') ? parseInt(localStorage.getItem('hungerLevel')) : 100)
+const lastFedTime = ref(Date.now())
+const isHungry = computed(() => hungerLevel.value < 50)
+const isStarving = computed(() => hungerLevel.value < 20)
+
+const time = ref('')
+const fullDate = ref('')
+const weekday = ref('')
+const weekdays = ['周日', '周一', '周二', '周三', '周四', '周五', '周六']
+
+function updateTime() {
+  const now = new Date()
+  time.value = now.toLocaleTimeString('zh-CN', { hour12: false })
+  fullDate.value = `${now.getFullYear()}年${(now.getMonth() + 1)
+    .toString()
+    .padStart(2, '0')}月${now.getDate().toString().padStart(2, '0')}日`
+  weekday.value = weekdays[now.getDay()]
+}
+
 const speeches = [
-  '点击我玩呀~',
-  '今天也要加油哦!',
-  '喵喵喵~',
-  '想不想摸摸我?',
-  '工作辛苦啦!',
-  '陪我玩一会儿嘛~',
-  '我最喜欢你了~',
-  '今天心情不错哦~',
-  '我想吃好吃的~',
-  '你真可爱~',
-  '我也想出去玩~',
-  '你真聪明~',
-  '我想去旅行~',
-  '我喜欢和你在一起~',
-]
+  '玩我呀~ 🎮',
+  '加油冲冲！💪',
+  '喵喵喵~ 🐱',
+  '摸摸我~ 🐾',
+  '辛苦啦~ 🥹',
+  '陪玩一会~ 🧸',
+  '最爱你啦~ 😘',
+  '心情棒棒哒~ 🌈',
+  '我饿了~ 🍖',
+  '你超可爱~ 😍',
+  '带我浪浪~ 🧳',
+  '聪明绝了~ 🧠',
+  '带我旅行吧~ ✈️',
+  '我喜欢你~ 💕',
+  '加油今天！💪',
+  '加班不可能~ 🫠',
+  '快喝水呀~ 🧃',
+  '钱包哭了~ 💸'
+];
 
 // 宠物互动
 const interactWithPet = () => {
@@ -51,6 +76,20 @@ const interactWithPet = () => {
   }, 3000)
 }
 
+const feedPet = () => {
+  hungerLevel.value = Math.min(100, hungerLevel.value + Math.floor(Math.random() * 5) + 1)
+  localStorage.setItem('hungerLevel', hungerLevel.value.toString())
+  lastFedTime.value = Date.now()
+  isHappy.value = true
+  showSpeech.value = true
+  currentSpeech.value = '好吃好吃~谢谢！😋'
+
+  setTimeout(() => {
+    isHappy.value = false
+    showSpeech.value = false
+  }, 2000)
+}
+
 // 随机睡觉行为
 setInterval(() => {
   if (Math.random() > 0.8) { // 10%概率会睡觉
@@ -63,6 +102,32 @@ setInterval(() => {
     }, 3000)
   }
 }, 10000)
+
+
+const updateHunger = () => {
+  // 随机减少1-5点饥饿度
+  const decreaseAmount = Math.floor(Math.random() * 5) + 1;
+  hungerLevel.value = Math.max(0, hungerLevel.value - decreaseAmount);
+  localStorage.setItem('hungerLevel', hungerLevel.value.toString());
+
+  // 如果饥饿度低于30，有30%概率触发抱怨
+  if (hungerLevel.value < 30 && Math.random() < 0.5) {
+    showSpeech.value = true;
+    if (hungerLevel.value < 15) {
+      currentSpeech.value = Math.random() < 0.5
+        ? '我快饿死了...求你给我吃的！😭'
+        : '呜呜呜...快给我吃的！😭';
+    } else {
+      currentSpeech.value = Math.random() < 0.5
+        ? '我好饿啊...快给我吃的！😫'
+        : '我有点饿了...能给我点吃的吗？😋';
+    }
+
+    setTimeout(() => {
+      showSpeech.value = false;
+    }, 3000);
+  }
+}
 
 let stompClient = null
 
@@ -107,7 +172,6 @@ const openNotificationDrawer = () => {
 
 const router = useRouter()
 const activeMenu = ref('1')
-const username = ref('用户名')
 
 const goToProfile = () => {
   router.push({ path: '/manager/selfinfo' })
@@ -143,6 +207,9 @@ onMounted(() => {
   checkLogin()
   loadMessagesFromLocalStorage()
   connectWebSocket()
+  setInterval(updateHunger, 10000)
+  updateTime()
+  setInterval(updateTime, 1000)
 })
 </script>
 
@@ -168,9 +235,29 @@ onMounted(() => {
 
       <!-- 中间空白区域 -->
       <div class="header-middle">
+        <div class="time-display">
+          <div class="clock">
+            🕒 {{ time }}
+          </div>
+          <div class="date">
+            📅 {{ fullDate }} {{ weekday }}
+          </div>
+        </div>
+
         <div class="pet-container" @click="interactWithPet">
+          <div class="hunger-bar">
+            <div class="hunger-level" :style="{ width: hungerLevel + '%' }"
+              :class="{ 'low': isHungry, 'critical': isStarving }"></div>
+            <span class="hunger-text">饱食度: {{ hungerLevel }}%</span>
+          </div>
+
           <!-- 宠物主体 -->
-          <div class="pet" :class="{ 'is-happy': isHappy, 'is-sleeping': isSleeping }">
+          <div class="pet" :class="{
+            'is-happy': isHappy,
+            'is-sleeping': isSleeping,
+            'is-hungry': isHungry,
+            'is-starving': isStarving
+          }">
             <!-- 宠物脸 -->
             <div class="pet-face">
               <!-- 眼睛 -->
@@ -189,9 +276,16 @@ onMounted(() => {
           </div>
 
           <!-- 对话气泡 -->
-          <div class="speech-bubble" v-if="showSpeech">
+          <div class="speech-bubble" v-if="showSpeech" :style="speechBubbleStyle">
             {{ currentSpeech }}
           </div>
+
+          <!-- 喂食按钮 -->
+          <el-tooltip content="喂食" placement="bottom">
+            <el-button class="feed-btn" size="small" circle @click.stop="feedPet">
+              <span style="font-size: 14px">🍗</span>
+            </el-button>
+          </el-tooltip>
         </div>
       </div>
 
@@ -222,15 +316,17 @@ onMounted(() => {
             <el-tag type="info" size="small">{{ messageList.length }} 条未读</el-tag>
           </div>
 
-          <el-scrollbar class="notification-scrollbar">
-            <el-timeline>
-              <el-timeline-item v-for="(msg, index) in messageList" :key="index" :timestamp="msg.timestamp"
-                placement="top" class="notification-item" @click="handleClick(msg.applyId)">
-                <div class="notification-content">
-                  <div class="notification-desc">{{ msg.content }}</div>
-                </div>
-              </el-timeline-item>
-            </el-timeline>
+          <div class="notification-content-wrapper" :class="{ 'no-scroll': messageList.length === 0 }">
+            <el-scrollbar v-if="messageList.length > 0" class="notification-scrollbar">
+              <el-timeline>
+                <el-timeline-item v-for="(msg, index) in messageList" :key="index" :timestamp="msg.timestamp"
+                  placement="top" class="notification-item" @click="handleClick(msg.applyId)">
+                  <div class="notification-content">
+                    <div class="notification-desc">{{ msg.content }}</div>
+                  </div>
+                </el-timeline-item>
+              </el-timeline>
+            </el-scrollbar>
 
             <div v-if="messageList.length === 0" class="empty-notification">
               <el-empty description="暂无待处理通知" :image-size="100">
@@ -239,7 +335,7 @@ onMounted(() => {
                 </el-icon>
               </el-empty>
             </div>
-          </el-scrollbar>
+          </div>
         </el-drawer>
 
         <!-- 管理员下拉 -->
@@ -247,7 +343,7 @@ onMounted(() => {
           <span class="el-dropdown-link">
             <div class="admin-dropdown">
               <el-avatar :size="32" icon="UserFilled" class="admin-avatar" />
-              <span class="admin-name">管理员</span>
+              <span class="admin-name">{{ username }}</span>
               <el-icon class="dropdown-arrow">
                 <ArrowDown />
               </el-icon>
@@ -299,25 +395,32 @@ onMounted(() => {
             </el-icon>
             <span>用户反馈</span>
           </el-menu-item>
-          <el-sub-menu index="4">
-            <template #title>
-              <el-icon>
-                <Setting />
-              </el-icon>
-              <span>系统设置与权限管理</span>
-            </template>
-            <el-menu-item index="/manager/setting">系统设置</el-menu-item>
-            <el-menu-item index="/manager/limit">权限管理</el-menu-item>
-          </el-sub-menu>
         </el-menu>
       </div>
 
       <!-- 数据渲染区域 -->
       <div class="content-container">
+        
         <div class="content-wrapper">
           <RouterView />
         </div>
+        <div class="footer-container">
+          <div class="footer-text">
+            © 2025 自由贷后台管理系统 · 本页面由
+            <span class="footer-author tooltip">
+              <svg class="author-icon" viewBox="0 0 24 24" fill="currentColor" width="16" height="16">
+                <path
+                  d="M20.71 7.04a1.003 1.003 0 0 0 0-1.42l-2.34-2.34a1.003 1.003 0 0 0-1.42 0l-9.19 9.19c-.13.13-.23.3-.28.49l-.89 3.54a.5.5 0 0 0 .61.61l3.54-.89c.19-.05.36-.15.49-.28l9.18-9.2zM5 18h14v2H5v-2z" />
+              </svg>
+              Matt Mi
+              <span class="tooltip-text">布局基础由团队提供 · 样式设计与前端编码由 Matt Mi 优化与完成</span>
+            </span>
+            编写实现
+          </div>
+        </div>
       </div>
+
+
     </div>
   </div>
 </template>
@@ -327,8 +430,8 @@ onMounted(() => {
   height: 60px;
   display: flex;
   align-items: center;
-  background-color: white;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+  background: linear-gradient(135deg, #2c3e50 0%, #1a1e29 100%);
+  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.1);
   position: relative;
   z-index: 10;
 }
@@ -337,15 +440,16 @@ onMounted(() => {
   display: flex;
   width: 240px;
   height: 100%;
-  background-color: #1b1e29;
   align-items: center;
   padding-left: 20px;
+  background: transparent;
 }
 
 .logo-text {
   font-size: 20px;
   font-weight: bold;
-  color: #ddd;
+  color: #fff;
+  text-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
 }
 
 .left-expand {
@@ -353,7 +457,184 @@ onMounted(() => {
   align-items: center;
   height: 100%;
   padding-left: 20px;
-  border-bottom: 1px solid #e6e6e6;
+  border-bottom: 0px solid #e6e6e6;
+}
+
+
+.time-display {
+  color: #f0f0f0;
+  font-size: 14px;
+  text-align: left;
+  margin-right: 20px;
+  line-height: 1.2;
+  font-family: 'Courier New', Courier, monospace;
+  background-color: rgba(255, 255, 255, 0);
+  padding: 8px 12px;
+  border-radius: 8px;
+  transition: background-color 0.3s ease, box-shadow 0.3s ease;
+}
+
+.time-display:hover {
+  background-color: rgba(255, 255, 255, 0.2);
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.3), 0 4px 12px rgba(0, 0, 0, 0.2);
+}
+
+.clock {
+  margin-top: 0px;
+  font-size: 15px;
+  font-weight: bold;
+  color: #fff;
+}
+
+.date {
+  margin-top: 6px;
+  font-size: 13px;
+  font-weight: bold;
+  color: #ddd;
+}
+
+.hunger-bar {
+  position: absolute;
+  top: 16px;
+  left: -110%;
+  transform: translateX(-50%);
+  width: 100px;
+  height: 18px;
+  background-color: rgba(255, 255, 255, 0.2);
+  border-radius: 10px;
+  overflow: hidden;
+  box-shadow:
+    0 1px 3px rgba(0, 0, 0, 0.2),
+    inset 0 1px 2px rgba(0, 0, 0, 0.1);
+  border: 1px solid rgba(255, 255, 255, 0.15);
+}
+
+.hunger-level {
+  height: 100%;
+  background: linear-gradient(135deg, #4CAF50 0%, #66BB6A 100%);
+  transition: width 0.5s ease;
+  position: relative;
+  overflow: hidden;
+  position: absolute;
+  right: 100;
+}
+
+.hunger-level::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: linear-gradient(90deg,
+      rgba(255, 255, 255, 0.2) 0%,
+      rgba(255, 255, 255, 0) 50%,
+      rgba(255, 255, 255, 0.2) 100%);
+  animation: shine 2s infinite;
+}
+
+.hunger-level.low {
+  background: linear-gradient(135deg, #FFC107 0%, #FFD54F 100%);
+}
+
+.hunger-level.critical {
+  background: linear-gradient(135deg, #F44336 0%, #EF5350 100%);
+}
+
+.hunger-text {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  font-size: 11px;
+  font-weight: 500;
+  color: white;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.3);
+  white-space: nowrap;
+  letter-spacing: 0.5px;
+}
+
+@keyframes shine {
+  0% {
+    transform: translateX(-100%);
+  }
+
+  100% {
+    transform: translateX(100%);
+  }
+}
+
+.feed-btn {
+  position: absolute;
+  right: -25px;
+  bottom: 11px;
+  width: 24px;
+  height: 24px;
+  min-width: auto;
+  padding: 0;
+  background: linear-gradient(135deg, #FFD166 0%, #FF9F1C 100%);
+  border: none;
+  border-radius: 50%;
+  box-shadow:
+    0 2px 5px rgba(0, 0, 0, 0.2),
+    inset 0 -1px 2px rgba(255, 255, 255, 0.3);
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 8;
+  will-change: transform, box-shadow;
+}
+
+.feed-btn:hover {
+  transform: scale(1.1) rotate(15deg);
+  box-shadow:
+    0 3px 8px rgba(0, 0, 0, 0.3),
+    inset 0 -1px 2px rgba(255, 255, 255, 0.3);
+  background: linear-gradient(135deg, #FFDF7F 0%, #FFB347 100%);
+}
+
+.feed-btn:active {
+  transform: scale(0.95);
+}
+
+.feed-btn span {
+  font-size: 13px;
+  transition: transform 0.3s ease;
+  transform-origin: center center;
+}
+
+.feed-btn:hover span {
+  transform: scale(1.2);
+}
+
+/* 饥饿状态下的宠物样式 */
+.pet.is-hungry .pet-eyes {
+  animation: blink 2s infinite;
+}
+
+.pet.is-starving .pet-eyes {
+  animation: blink 1s infinite;
+}
+
+.pet.is-starving .pet-mouth {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background-color: #FF6B88;
+}
+
+@keyframes blink {
+
+  0%,
+  100% {
+    opacity: 1;
+  }
+
+  50% {
+    opacity: 0.3;
+  }
 }
 
 .pet-container {
@@ -437,29 +718,32 @@ onMounted(() => {
 
 .speech-bubble {
   position: absolute;
-  top: 40px;
-  left: 150%;
-  transform: translateX(50%);
+  top: 6px;
+  left: 400%;
+  transform: translateX(-50%);
   background-color: white;
   padding: 6px 12px;
   border-radius: 18px;
-  box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
   font-size: 12px;
   white-space: nowrap;
+  max-width: 1500px;
+  text-overflow: ellipsis;
+  overflow: hidden;
+  z-index: 10;
   animation: bubbleIn 0.3s ease;
+  pointer-events: none;
 }
 
 .speech-bubble:after {
   content: '';
   position: absolute;
-  bottom: -6px;
-  left: 50%;
-  transform: translateX(-50%);
-  width: 0;
-  height: 0;
-  border-left: 8px solid transparent;
-  border-right: 8px solid transparent;
-  border-top: 8px solid white;
+  top: 50%;
+  left: -5px;
+  transform: translateY(-50%);
+  border-top: 8px solid transparent;
+  border-bottom: 8px solid transparent;
+  border-right: 8px solid white;
 }
 
 /* 状态类 */
@@ -490,14 +774,29 @@ onMounted(() => {
 
 /* 动画 */
 @keyframes bubbleIn {
-  from { opacity: 0; transform: translate(-50%, 10px); }
-  to { opacity: 1; transform: translate(-50%, 0); }
+  from {
+    opacity: 0;
+    transform: translate(-50%, 10px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translate(-50%, 0);
+  }
 }
 
 @keyframes petJump {
-  0% { transform: translateY(0); }
-  50% { transform: translateY(-10px); }
-  100% { transform: translateY(0); }
+  0% {
+    transform: translateY(0);
+  }
+
+  50% {
+    transform: translateY(-10px);
+  }
+
+  100% {
+    transform: translateY(0);
+  }
 }
 
 .pet-container:active .pet {
@@ -511,7 +810,8 @@ onMounted(() => {
   display: flex;
   justify-content: center;
   align-items: center;
-  border-bottom: 2px solid #e6e6e6; /* 保持原有边框 */
+  border-bottom: 0px solid #e6e6e6;
+  /* 保持原有边框 */
 }
 
 .header-right {
@@ -520,42 +820,38 @@ onMounted(() => {
   height: 100%;
   padding-right: 20px;
   gap: 20px;
-  border-bottom: 2px solid #e6e6e6;
+  border-bottom: 0px solid #e6e6e6;
 }
 
 .header-icon-wrapper {
   display: flex;
   align-items: center;
   justify-content: center;
-  width: 44px;
-  height: 44px;
+  width: 40px;
+  height: 40px;
   border-radius: 50%;
-  transition: all 0.3s ease;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
   cursor: pointer;
   position: relative;
 }
 
 .header-icon-wrapper:hover {
-  background-color: #f1f5f9;
+  background-color: rgba(255, 255, 255, 0.1);
 }
 
 .header-icon-wrapper.active {
-  background-color: #e1e8ff;
+  background-color: rgba(255, 255, 255, 0.15);
 }
 
 .header-icon {
   font-size: 20px;
-  color: #64748b;
+  color: rgba(255, 255, 255, 0.9);
   transition: all 0.3s ease;
 }
 
 .header-icon-wrapper:hover .header-icon {
-  color: #3b82f6;
+  color: #fff;
   transform: scale(1.1);
-}
-
-.header-icon-wrapper.active .header-icon {
-  color: #3b82f6;
 }
 
 .admin-dropdown {
@@ -566,42 +862,56 @@ onMounted(() => {
   height: 44px;
   border-radius: 22px;
   cursor: pointer;
-  transition: all 0.3s ease;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
 .admin-dropdown:hover {
-  background-color: #f1f5f9;
+  background-color: #526679;
 }
 
 .admin-avatar {
-  background-color: #3b82f6;
+  background: linear-gradient(135deg, #537bee 0%, #3b82f6 100%);
   color: white;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
 }
 
 .admin-name {
-  color: #2c3e50;
+  color: rgba(255, 255, 255, 0.9);
   font-weight: 500;
   font-size: 14px;
+  transition: color 0.3s ease;
+}
+
+.admin-dropdown:hover .admin-name {
+  color: #fff;
 }
 
 .dropdown-arrow {
-  color: #64748b;
+  color: rgba(255, 255, 255, 0.7);
   font-size: 14px;
-  transition: transform 0.3s ease;
+  transition: all 0.3s ease;
 }
+
+.admin-dropdown:hover .dropdown-arrow {
+  color: #fff;
+  transform: rotate(180deg);
+}
+
 
 .el-dropdown:hover .dropdown-arrow {
   transform: rotate(180deg);
 }
 
 .message-badge :deep(.el-badge__content) {
-  transform: translate(80%, -30%);
-  border: 2px solid white;
-  font-weight: bold;
+  transform: translate(70%, -30%);
+  border: 2px solid #1a1e29;
+  font-weight: 600;
   height: 18px;
   min-width: 18px;
   line-height: 18px;
   padding: 0 4px;
+  background: linear-gradient(135deg, #ef4444 0%, #f87171 100%);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
 }
 
 .notification-drawer :deep(.el-drawer__header) {
@@ -623,6 +933,7 @@ onMounted(() => {
 }
 
 .notification-header {
+  margin-top: -35px;
   padding: 14px 20px;
   display: flex;
   align-items: center;
@@ -666,7 +977,20 @@ onMounted(() => {
   line-height: 1.5;
 }
 
+.notification-content-wrapper {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  height: calc(100% - 60px);
+}
+
+.notification-content-wrapper.no-scroll {
+  overflow: hidden;
+}
+
+
 .empty-notification {
+  margin-top: -200px;
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -674,6 +998,13 @@ onMounted(() => {
   height: 100%;
   padding: 40px 0;
   opacity: 0.8;
+}
+
+/* 强制隐藏滚动条 */
+.notification-content-wrapper.no-scroll :deep(.el-scrollbar__wrap),
+.notification-content-wrapper.no-scroll :deep(.el-scrollbar__bar) {
+  display: none !important;
+  overflow: hidden !important;
 }
 
 .notification-drawer :deep(.el-timeline) {
@@ -704,12 +1035,14 @@ onMounted(() => {
 .menu-container {
   width: 240px;
   height: 100%;
-  background-color: #1b1e29;
+  background: linear-gradient(180deg, #2c3e50 0%, #1a1e29 100%);
+  box-shadow: 2px 0 8px rgba(0, 0, 0, 0.08);
 }
 
 .side-menu {
   height: 100%;
   border-right: none;
+  background: transparent;
 }
 
 .content-container {
@@ -728,27 +1061,113 @@ onMounted(() => {
 }
 
 .admin-dropdown-menu {
-  border-radius: 8px;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+  border-radius: 10px;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.12);
   border: none;
   padding: 8px 0;
+  background-color: white;
 }
 
 .admin-dropdown-menu :deep(.el-dropdown-menu__item) {
-  padding: 8px 16px;
+  padding: 10px 16px;
   font-size: 14px;
-  color: #64748b;
+  color: #4b5563;
+  transition: all 0.2s ease;
 }
 
 .admin-dropdown-menu :deep(.el-dropdown-menu__item:hover) {
-  background-color: #f1f5f9;
+  background-color: #f3f4f6;
   color: #3b82f6;
 }
 
 .admin-dropdown-menu :deep(.el-dropdown-menu__item--divided) {
-  border-top: 1px solid #e6e6e6;
+  border-top: 1px solid #f3f4f6;
   margin-top: 4px;
   padding-top: 8px;
+}
+
+.footer-container {
+  margin-top: -40px;
+  height: 40px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background-color: #f8f8f8;
+  border-top: 1px solid #e5e5e5;
+  box-shadow: 0 -1px 6px rgba(0, 0, 0, 0.03);
+}
+
+.footer-text {
+  font-size: 15px;
+  color: #444;
+  font-family: 'Noto Serif SC', 'PingFang SC', 'Microsoft YaHei', sans-serif;
+  text-align: center;
+  line-height: 1.6;
+  letter-spacing: 0.2px;
+}
+
+.footer-author {
+  font-weight: 700;
+  color: #1a1a1a;
+  font-family: 'JetBrains Mono', 'Times New Roman', serif;
+  font-size: 16px;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+  text-decoration-color: rgba(0, 0, 0, 0.15);
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  cursor: default;
+  transition: all 0.3s ease;
+}
+
+.footer-author.tooltip {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-weight: 700;
+  color: #1a1a1a;
+  font-family: 'JetBrains Mono', 'Times New Roman', serif;
+  font-size: 16px;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+  text-decoration-color: rgba(0, 0, 0, 0.15);
+  cursor: default;
+  transition: all 0.3s ease;
+}
+
+.tooltip-text {
+  visibility: hidden;
+  opacity: 0;
+  width: max-content;
+  max-width: 450px;
+  background-color: #ffffff00;
+  color: #000000;
+  font-size: 13px;
+  line-height: 1.4;
+  border-radius: 4px;
+  padding: 6px 10px;
+  position: absolute;
+  bottom: 115%;
+  left: 50%;
+  transform: translateX(-50%);
+  white-space: normal;
+  text-align: center;
+  z-index: 999;
+  transition: opacity 0.3s ease;
+  pointer-events: none;
+}
+
+.tooltip:hover .tooltip-text {
+  visibility: visible;
+  opacity: 1;
+}
+
+.author-icon {
+  color: #000000;
+  opacity: 0.8;
+  margin-bottom: 1px;
 }
 </style>
 
@@ -782,32 +1201,40 @@ body,
 }
 
 .el-menu {
-  background-color: #1b1e29;
-  border: none;
+  --el-menu-bg-color: transparent;
+  --el-menu-hover-bg-color: rgba(255, 255, 255, 0.08);
+  --el-menu-active-color: #fff;
 }
 
 .el-sub-menu__title {
-  height: 50px;
-  color: #ddd;
+  color: rgba(255, 255, 255, 0.8);
+  transition: all 0.3s ease;
+  margin: 4px 8px;
+  border-radius: 6px;
 }
 
 .el-menu-item {
-  color: #ddd;
+  color: rgba(255, 255, 255, 0.8);
+  transition: all 0.3s ease;
+  margin: 4px 8px;
+  border-radius: 6px;
 }
 
 .el-menu-item.is-active {
-  background-color: #537bee;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%) !important;
   color: white !important;
+  box-shadow: 0 2px 8px rgba(83, 123, 238, 0.3);
 }
 
 .el-menu-item:hover {
-  background-color: #2e3440;
   color: #fff;
+  background-color: rgba(255, 255, 255, 0.08) !important;
 }
 
+
 .el-sub-menu__title:hover {
-  background-color: #2e3440;
   color: #fff;
+  background-color: rgba(255, 255, 255, 0.08) !important;
 }
 
 .el-tooltip__trigger {

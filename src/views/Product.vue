@@ -59,7 +59,7 @@ const fetchProducts = async () => {
   try {
     const response = await fetchProductAPI(currentPage.value, pageSize.value, filterStatus.value);
     const fieldMap = response.data.meta?.field_map;
-    
+
     if (!fieldMap) {
       throw new Error("字段映射信息缺失");
     }
@@ -186,19 +186,9 @@ onMounted(fetchProducts);
         <div class="card-header">
           <h2 class="management-title">产品管理</h2>
           <div class="header-actions">
-            <el-select 
-              v-model="filterStatus" 
-              @change="handleStatusChange" 
-              placeholder="选择产品状态"
-              class="status-select" 
-              popper-class="status-select-dropdown"
-            >
-              <el-option 
-                v-for="item in statusOptions" 
-                :key="item.value" 
-                :label="item.label"
-                :value="item.value" 
-              />
+            <el-select v-model="filterStatus" @change="handleStatusChange" placeholder="选择产品状态" class="status-select"
+              popper-class="status-select-dropdown">
+              <el-option v-for="item in statusOptions" :key="item.value" :label="item.label" :value="item.value" />
             </el-select>
             <el-button type="primary" @click="openCreateDialog">
               创建产品
@@ -208,20 +198,13 @@ onMounted(fetchProducts);
       </template>
 
       <div class="table-container">
-        <el-table 
-          :data="products" 
-          v-loading="loading" 
-          ref="tableRef" 
-          style="width: 100%"
-          :header-cell-style="{
-            background: '#f8fafc',
-            color: '#64748b',
-            textAlign: 'center'
-          }" 
-          :cell-style="{ padding: '12px 0' }"
-        >
+        <el-table :data="products" v-loading="loading" ref="tableRef" style="width: 100%" :header-cell-style="{
+          background: '#f8fafc',
+          color: '#64748b',
+          textAlign: 'center'
+        }" :cell-style="{ padding: '12px 0' }">
           <el-table-column prop="id" label="产品ID" width="100" header-align="center" />
-          
+
           <el-table-column prop="name" label="产品名称" header-align="center">
             <template #default="{ row }">
               <div class="product-info-cell" style="justify-content: flex-start;">
@@ -229,24 +212,24 @@ onMounted(fetchProducts);
               </div>
             </template>
           </el-table-column>
-          
+
           <el-table-column label="最小金额" header-align="center">
             <template #default="{ row }">
               ¥{{ (row.minAmount).toFixed(2) }}
             </template>
           </el-table-column>
-          
+
           <el-table-column label="最大金额" header-align="center">
             <template #default="{ row }">
               ¥{{ (row.maxAmount).toFixed(2) }}
             </template>
           </el-table-column>
-          
+
           <el-table-column prop="minTerm" label="最短期限(月)" header-align="center" />
           <el-table-column prop="maxTerm" label="最长期限(月)" header-align="center" />
           <el-table-column prop="minRate" label="最低年利率" header-align="center" />
           <el-table-column prop="maxRate" label="最高年利率" header-align="center" />
-          
+
           <el-table-column label="状态" header-align="center">
             <template #default="{ row }">
               <el-tag :type="row.status === 'ONLINE' ? 'success' : 'danger'" class="status-tag">
@@ -254,29 +237,19 @@ onMounted(fetchProducts);
               </el-tag>
             </template>
           </el-table-column>
-          
+
           <el-table-column label="操作" fixed="right" header-align="center">
             <template #default="{ row }">
               <div class="action-buttons">
                 <el-button type="primary" size="small" @click="openEditDialog(row)" class="edit-button">
                   编辑
                 </el-button>
-                <el-button 
-                  v-if="row.status === 'OFFLINE'" 
-                  type="success" 
-                  size="small" 
-                  @click="toggleProductStatus(row.id, 'ONLINE')"
-                  class="online-button"
-                >
+                <el-button v-if="row.status === 'OFFLINE'" type="success" size="small"
+                  @click="toggleProductStatus(row.id, 'ONLINE')" class="online-button">
                   上线
                 </el-button>
-                <el-button 
-                  v-else 
-                  type="danger" 
-                  size="small" 
-                  @click="toggleProductStatus(row.id, 'OFFLINE')"
-                  class="offline-button"
-                >
+                <el-button v-else type="danger" size="small" @click="toggleProductStatus(row.id, 'OFFLINE')"
+                  class="offline-button">
                   下线
                 </el-button>
               </div>
@@ -286,26 +259,14 @@ onMounted(fetchProducts);
       </div>
 
       <div class="pagination-container">
-        <el-pagination 
-          :current-page="currentPage" 
-          :page-size="pageSize" 
-          :total="totalItems"
-          :page-sizes="[5, 10, 20, 50]" 
-          layout="total, sizes, prev, pager, next, jumper"
-          @current-change="handlePageChange" 
-          @size-change="handlePageSizeChange" 
-          class="custom-pagination" 
-        />
+        <el-pagination :current-page="currentPage" :page-size="pageSize" :total="totalItems"
+          :page-sizes="[5, 10, 20, 50]" layout="total, sizes, prev, pager, next, jumper"
+          @current-change="handlePageChange" @size-change="handlePageSizeChange" class="custom-pagination" />
       </div>
     </el-card>
 
-    <el-dialog 
-      v-model="dialogVisible" 
-      :title="isEditMode ? '编辑产品' : '创建新产品'" 
-      width="500px" 
-      class="product-detail-dialog"
-      @closed="formRef?.resetFields()"
-    >
+    <el-dialog v-model="dialogVisible" :title="isEditMode ? '编辑产品' : '创建新产品'" width="500px"
+      class="product-detail-dialog" @closed="formRef?.resetFields()">
       <el-form :model="form" :rules="formRules" ref="formRef" label-width="100px" status-icon>
         <el-form-item label="产品名称" prop="name">
           <el-input v-model="form.name" placeholder="请输入产品名称" />
@@ -493,6 +454,38 @@ onMounted(fetchProducts);
 
 .table-container {
   padding: 0 20px;
+  height: calc(100vh - 450px);
+  /* 固定高度，根据实际布局调整 */
+  display: flex;
+  flex-direction: column;
+}
+
+/* 表格包装器 */
+.table-wrapper {
+  flex: 1;
+  overflow: auto;
+  position: relative;
+}
+
+/* 表格样式 */
+:deep(.el-table) {
+  width: 100% !important;
+  table-layout: fixed;
+}
+
+/* 表头固定 */
+:deep(.el-table__header-wrapper) {
+  position: sticky;
+  top: 0;
+  z-index: 2;
+  background: #f8fafc;
+}
+
+/* 表格单元格内容不换行 */
+:deep(.el-table .cell) {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 /* 按钮样式 */
