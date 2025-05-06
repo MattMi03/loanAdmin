@@ -246,10 +246,10 @@ const clearUserId = () => {
     fetchApplications();
 };
 
-const handleUserIdInputChange = (value) => {
-    userId.value = value;
-    if (value) {
-        localStorage.setItem('userId', value);
+const handleUserIdInputChange = () => {
+
+    if (userId.value) {
+        localStorage.setItem('userId', userId.value);
     } else {
         localStorage.setItem('userId', 'CLEAR');
     }
@@ -262,10 +262,9 @@ const clearApplyId = () => {
     fetchApplications();
 };
 
-const handleApplyIdInputChange = (value) => {
-    applyId.value = value;
-    if (value) {
-        localStorage.setItem('applyId', value);
+const handleApplyIdInputChange = () => {
+    if (applyId.value) {
+        localStorage.setItem('applyId', applyId.value);
     } else {
         localStorage.setItem('applyId', 'CLEAR');
     }
@@ -304,10 +303,20 @@ watch(() => route.query.applyId, (newId) => {
                                 ...Object.keys(statusMap).map(k => ({ value: k, label: statusMap[k].label }))
                             ]" :key="item.value" :label="item.label" :value="item.value" />
                         </el-select>
-                        <el-input v-model="userId" placeholder="输入用户ID" clearable @clear="clearUserId"
-                            @input="handleUserIdInputChange" class="search-input" />
-                        <el-input v-model="applyId" placeholder="输入申请ID" clearable @clear="clearApplyId"
-                            @input="handleApplyIdInputChange" class="search-input" />
+                        <div>
+                            <el-input v-model="userId" placeholder="输入用户ID" clearable @clear="clearUserId"
+                                class="search-input" />
+                            <el-button type="primary" @click="handleUserIdInputChange" class="search-button">
+                                搜索
+                            </el-button>
+                        </div>
+                        <div>
+                            <el-input v-model="applyId" placeholder="输入申请ID" clearable @clear="clearApplyId"
+                                class="search-input" />
+                            <el-button type="primary" @click="handleApplyIdInputChange" class="search-button">
+                                搜索
+                            </el-button>
+                        </div>
                     </div>
                 </div>
             </template>

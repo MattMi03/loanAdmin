@@ -14,6 +14,7 @@ const drawerVisible = ref(false)
 
 const isHappy = ref(false)
 const isSleeping = ref(false)
+const isChewing = ref(false)
 const showSpeech = ref(false)
 const currentSpeech = ref('')
 
@@ -80,12 +81,12 @@ const feedPet = () => {
   hungerLevel.value = Math.min(100, hungerLevel.value + Math.floor(Math.random() * 5) + 1)
   localStorage.setItem('hungerLevel', hungerLevel.value.toString())
   lastFedTime.value = Date.now()
-  isHappy.value = true
+  isChewing.value = true
   showSpeech.value = true
   currentSpeech.value = '好吃好吃~谢谢！😋'
 
   setTimeout(() => {
-    isHappy.value = false
+    isChewing.value = false
     showSpeech.value = false
   }, 2000)
 }
@@ -111,7 +112,7 @@ const updateHunger = () => {
   localStorage.setItem('hungerLevel', hungerLevel.value.toString());
 
   // 如果饥饿度低于30，有30%概率触发抱怨
-  if (hungerLevel.value < 30 && Math.random() < 0.5) {
+  if (hungerLevel.value < 50 && Math.random() < 0.5) {
     showSpeech.value = true;
     if (hungerLevel.value < 15) {
       currentSpeech.value = Math.random() < 0.5
@@ -256,7 +257,8 @@ onMounted(() => {
             'is-happy': isHappy,
             'is-sleeping': isSleeping,
             'is-hungry': isHungry,
-            'is-starving': isStarving
+            'is-starving': isStarving,
+            'is-chewing': isChewing
           }">
             <!-- 宠物脸 -->
             <div class="pet-face">
@@ -400,7 +402,7 @@ onMounted(() => {
 
       <!-- 数据渲染区域 -->
       <div class="content-container">
-        
+
         <div class="content-wrapper">
           <RouterView />
         </div>
@@ -634,6 +636,71 @@ onMounted(() => {
 
   50% {
     opacity: 0.3;
+  }
+}
+
+/* 在style部分添加 */
+.pet.is-chewing .pet-mouth {
+  animation: chew 0.3s infinite alternate;
+}
+
+@keyframes chew {
+  0% {
+    border-radius: 50%;
+    height: 10px;
+    width: 20px;
+    bottom: 10px;
+    background-color: #FF6B88;
+  }
+
+  50% {
+    border-radius: 0 0 50% 50%;
+    height: 8px;
+    width: 15px;
+    bottom: 8px;
+    background-color: #333;
+  }
+
+  100% {
+    border-radius: 50%;
+    height: 6px;
+    width: 18px;
+    bottom: 9px;
+    background-color: #FF6B88;
+  }
+}
+
+.pet.is-chewing .pet-eyes {
+  transform: translateY(1px);
+  transition: transform 0.15s ease;
+}
+
+/* 咀嚼时耳朵微微抖动 */
+.pet.is-chewing .pet-ear.left {
+  animation: earTwitchLeft 0.4s infinite alternate;
+}
+
+.pet.is-chewing .pet-ear.right {
+  animation: earTwitchRight 0.4s infinite alternate;
+}
+
+@keyframes earTwitchLeft {
+  0% {
+    transform: rotate(-30deg);
+  }
+
+  100% {
+    transform: rotate(-25deg) translateX(1px);
+  }
+}
+
+@keyframes earTwitchRight {
+  0% {
+    transform: rotate(30deg);
+  }
+
+  100% {
+    transform: rotate(35deg) translateX(1px);
   }
 }
 
