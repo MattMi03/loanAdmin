@@ -155,7 +155,8 @@ onMounted(() => {
                                 :value="item.value" />
                         </el-select>
                         <div>
-                            <el-input v-model="userIdInput" placeholder="输入用户ID" clearable class="search-input" />
+                            <el-input v-model="userIdInput" placeholder="输入用户ID" clearable class="search-input"
+                                @keydown.enter="handleUserIdSearch" />
                             <el-button type="primary" @click="handleUserIdSearch" class="search-button">
                                 搜索
                             </el-button>
@@ -459,7 +460,8 @@ onMounted(() => {
 
 .table-container {
     padding: 0 20px;
-    height: calc(100vh - 450px); /* 固定高度，根据实际布局调整 */
+    height: calc(100vh - 450px);
+    /* 固定高度，根据实际布局调整 */
     display: flex;
     flex-direction: column;
 }

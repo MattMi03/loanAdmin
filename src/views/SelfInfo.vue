@@ -178,7 +178,7 @@ onMounted(async () => {
               </el-tag>
             </div>
             
-            <div class="welcome-emoji">🎉</div>
+            <div class="welcome-emoji">🎉🎉🎉</div>
           </div>
         </div>
 

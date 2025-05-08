@@ -1,9 +1,10 @@
 <script setup>
 import { watch, ref, onMounted, onBeforeUnmount } from 'vue';
-import { useRoute } from 'vue-router';
+import { useRoute, useRouter } from 'vue-router';
 import { ElMessage, ElTag, ElDialog, ElDescriptions, ElDescriptionsItem } from 'element-plus';
-import { fetchApplicationAPI, auditApplicationAPI, loanApplicationAPI, getRepaymentPlanAPI, fetchApplicationByUserIdAPI, fetchApplicationByIdAPI, downloadContractAPI } from '@/api/adminApi';
+import { fetchApplicationAPI, auditApplicationAPI, loanApplicationAPI, getRepaymentPlanAPI, fetchApplicationByUserIdAPI, fetchApplicationByIdAPI, downloadContractAPI, getAuitByApplyIdAPI } from '@/api/adminApi';
 
+const router = useRouter();
 const route = useRoute();
 const userIdFromRoute = route.query.userId;
 const storedUserId = localStorage.getItem('userId');
@@ -93,7 +94,7 @@ const fetchApplications = async () => {
 
 const handleAudit = async () => {
     try {
-        const statusCode = auditAction.value === 'approve' ? 0 : 1;
+        const statusCode = auditAction.value === 'approve' ? 1 : 0;
 
         await auditApplicationAPI(currentApplyId.value, statusCode, comment.value);
 
@@ -216,6 +217,21 @@ const showDetail = (app) => {
         user: filterUserInfo(app.user),
         product: app.product
     };
+    getAuitByApplyIdAPI(app.id).then(res => {
+        const record = res.loanApproval;
+        const auditRecords = record ? [{
+            ...record,
+            amount: record.amount / 100,
+            approvalTime: formatDate(record.approvalTime)
+        }] : [];
+
+        selectedApplication.value = {
+            ...app,
+            auditRecords
+        };
+    }).catch(error => {
+        console.error('获取审批记录失败: ' + (error.response?.msg || error.message));
+    });
     dialogVisible.value = true;
 };
 
@@ -271,6 +287,13 @@ const handleApplyIdInputChange = () => {
     fetchApplications();
 };
 
+const goToDisbursement = (applyId) => {
+    router.push({
+        path: '/manager/disbursement',
+        query: { applyId: applyId }
+    });
+}
+
 onMounted(fetchApplications);
 
 onBeforeUnmount(() => {
@@ -305,14 +328,14 @@ watch(() => route.query.applyId, (newId) => {
                         </el-select>
                         <div>
                             <el-input v-model="userId" placeholder="输入用户ID" clearable @clear="clearUserId"
-                                class="search-input" />
+                                @keydown.enter="handleUserIdInputChange" class="search-input" />
                             <el-button type="primary" @click="handleUserIdInputChange" class="search-button">
                                 搜索
                             </el-button>
                         </div>
                         <div>
                             <el-input v-model="applyId" placeholder="输入申请ID" clearable @clear="clearApplyId"
-                                class="search-input" />
+                                @keydown.enter="handleApplyIdInputChange" class="search-input" />
                             <el-button type="primary" @click="handleApplyIdInputChange" class="search-button">
                                 搜索
                             </el-button>
@@ -386,13 +409,10 @@ watch(() => route.query.applyId, (newId) => {
                                     @click="openDisburseDialog(row)" class="loan-button">
                                     放款
                                 </el-button>
+                            
                                 <el-button v-if="row.status === 'DISBURSED'" type="primary" size="small"
-                                    @click="showRepaymentPlan(row.id)" class="plan-button">
-                                    还款计划
-                                </el-button>
-                                <el-button v-if="row.status === 'DISBURSED'" type="primary" size="small"
-                                    @click="downloadContract(row.id)" class="contract-button">
-                                    下载合同
+                                    @click="goToDisbursement(row.id)" class="contract-button">
+                                    查看放款
                                 </el-button>
                             </div>
                         </template>
@@ -410,38 +430,81 @@ watch(() => route.query.applyId, (newId) => {
         <!-- 申请详情对话框 -->
         <el-dialog v-model="dialogVisible" title="贷款申请详情" width="700px" class="application-detail-dialog">
             <el-descriptions :column="2" border v-if="selectedApplication">
+
+                <!-- 用户信息 -->
                 <el-descriptions-item label="用户信息" :span="2">
                     <div class="detail-section">
-                        <div>用户ID: {{ selectedApplication.user_id }}</div>
-                        <div>用户名: {{ selectedApplication.user.username }}</div>
-                        <div>手机: {{ selectedApplication.user.phone }}</div>
-                        <div>邮箱: {{ selectedApplication.user.email }}</div>
-                        <div>认证状态: {{ selectedApplication.user.verified ? '已认证' : '未认证' }}</div>
+                        <div><strong>用户ID：</strong>{{ selectedApplication.user_id }}</div>
+                        <div><strong>用户名：</strong>{{ selectedApplication.user.username }}</div>
+                        <div><strong>手机：</strong>{{ selectedApplication.user.phone }}</div>
+                        <div><strong>邮箱：</strong>{{ selectedApplication.user.email }}</div>
+                        <div><strong>认证状态：</strong>{{ selectedApplication.user.verified ? '已认证' : '未认证' }}</div>
                     </div>
                 </el-descriptions-item>
 
+                <!-- 贷款产品 -->
                 <el-descriptions-item label="贷款产品" :span="2">
                     <div class="detail-section">
-                        <div>产品名称: {{ selectedApplication.product.name }}</div>
-                        <div>金额范围: ￥{{ selectedApplication.product.minAmount.toFixed(2).toLocaleString() }} -
-                            ￥{{ selectedApplication.product.maxAmount.toFixed(2).toLocaleString() }}</div>
-                        <div>期限范围: {{ selectedApplication.product.minTerm }} -
-                            {{ selectedApplication.product.maxTerm }}个月</div>
-                        <div>利率范围: {{ (selectedApplication.product.minRate * 100).toFixed(2) }}% -
-                            {{ (selectedApplication.product.maxRate * 100).toFixed(2) }}%</div>
+                        <div><strong>产品名称：</strong>{{ selectedApplication.product.name }}</div>
+                        <div>
+                            <strong>金额范围：</strong>
+                            ￥{{ selectedApplication.product.minAmount.toFixed(2).toLocaleString() }} -
+                            ￥{{ selectedApplication.product.maxAmount.toFixed(2).toLocaleString() }}
+                        </div>
+                        <div>
+                            <strong>期限范围：</strong>{{ selectedApplication.product.minTerm }} -
+                            {{ selectedApplication.product.maxTerm }}个月
+                        </div>
+                        <div>
+                            <strong>利率范围：</strong>{{ (selectedApplication.product.minRate * 100).toFixed(2) }}% -
+                            {{ (selectedApplication.product.maxRate * 100).toFixed(2) }}%
+                        </div>
                     </div>
                 </el-descriptions-item>
 
+                <!-- 申请详情 -->
                 <el-descriptions-item label="申请详情" :span="2">
                     <div class="detail-section">
-                        <div>风险得分: {{ selectedApplication.riskScore.toFixed(2).toLocaleString() }}/100.00</div>
-                        <div>申请金额: ￥{{ selectedApplication.amount.toFixed(2).toLocaleString() }}</div>
-                        <div>贷款期限: {{ selectedApplication.term }}个月</div>
-                        <div>适用利率: {{ (selectedApplication.interestRate * 100).toFixed(2) }}%</div>
-                        <div>申请时间: {{ selectedApplication.createTime }}</div>
-                        <div>最后更新: {{ selectedApplication.updateTime }}</div>
+                        <div><strong>风险得分：</strong>{{ selectedApplication.riskScore.toFixed(2).toLocaleString()
+                            }}/100.00</div>
+                        <div><strong>申请金额：</strong>￥{{ selectedApplication.amount.toFixed(2).toLocaleString() }}</div>
+                        <div><strong>贷款期限：</strong>{{ selectedApplication.term }}个月</div>
+                        <div><strong>适用利率：</strong>{{ (selectedApplication.interestRate * 100).toFixed(2) }}%</div>
+                        <div><strong>申请时间：</strong>{{ selectedApplication.createTime }}</div>
+                        <div><strong>最后更新：</strong>{{ selectedApplication.updateTime }}</div>
                     </div>
                 </el-descriptions-item>
+
+                <!-- 审批情况 -->
+                <el-descriptions-item label="审批情况" :span="2">
+                    <div class="detail-section">
+                        <div v-if="selectedApplication?.auditRecords?.length">
+                            <div v-for="(record, index) in selectedApplication.auditRecords" :key="index"
+                                class="audit-record">
+                                <div><strong>审批人ID：</strong>{{ record.adminId }}</div>
+                                <div><strong>审批人：</strong>{{ record.adminUsername }}</div>
+                                <div><strong>邮箱：</strong>{{ record.adminEmail }}</div>
+                                <div>
+                                    <strong>审批金额：</strong>
+                                    ￥{{ record.amount.toFixed(2).toLocaleString() }}
+                                </div>
+                                <div>
+                                    <strong>状态：</strong>
+                                    <span :class="['status', record.status?.toLowerCase()]">
+                                        {{ record.status === 'APPROVED' ? '审批通过' : '审批拒绝' }}
+                                    </span>
+                                </div>
+                                <div><strong>审批时间：</strong>{{ record.approvalTime }}</div>
+                                <div><strong>备注：</strong>{{ record.comment || '无' }}</div>
+                                <el-divider v-if="index !== selectedApplication.auditRecords.length - 1" />
+                            </div>
+                        </div>
+                        <div v-else style="text-align: center; padding: 20px 0; color: #999;">
+                            暂无审批记录
+                        </div>
+                    </div>
+                </el-descriptions-item>
+
             </el-descriptions>
         </el-dialog>
 

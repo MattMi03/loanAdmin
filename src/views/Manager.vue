@@ -1,7 +1,8 @@
 <script setup>
+import Watermark from '@/components/Watermark.vue'
 import { onMounted, ref, computed } from 'vue'
 import { useRouter } from 'vue-router'
-import { HomeFilled, Document, List, User, Message } from '@element-plus/icons-vue'
+import { House, Document, EditPen, User, Message, Money } from '@element-plus/icons-vue'
 import { ElMessage } from 'element-plus'
 import SockJS from 'sockjs-client/dist/sockjs'
 import Stomp from 'stompjs'
@@ -58,13 +59,24 @@ const speeches = [
   '钱包哭了~ 💸'
 ];
 
+const speechesHurgy = [
+  '我饿了~ 🍖',
+  '别摸了，我饿了~ 🍖',
+  '我快饿死了~ 😭',
+  '我好饿啊~ 😫',
+  '吃点什么呢~ 🍔',
+]
+
 // 宠物互动
 const interactWithPet = () => {
   isHappy.value = true
   showSpeech.value = true
 
   // 随机选择一句话
-  currentSpeech.value = speeches[Math.floor(Math.random() * speeches.length)]
+  if (hungerLevel.value > 50)
+    currentSpeech.value = speeches[Math.floor(Math.random() * speeches.length)]
+  else
+    currentSpeech.value = speechesHurgy[Math.floor(Math.random() * speechesHurgy.length)]
 
   // 开心状态持续1.5秒
   setTimeout(() => {
@@ -183,7 +195,7 @@ const goToChangePassword = () => {
 }
 
 const handleLogout = () => {
-  localStorage.removeItem('token')
+  localStorage.clear()
   ElMessage.success('退出成功')
   router.push('/login')
 }
@@ -191,6 +203,7 @@ const handleLogout = () => {
 const checkLogin = () => {
   const token = localStorage.getItem('token')
   if (!token) {
+    localStorage.clear()
     ElMessage.error('请先登录')
     router.push('/login')
   }
@@ -215,6 +228,7 @@ onMounted(() => {
 </script>
 
 <template>
+  <Watermark />
   <div>
     <!-- 头部区域 -->
     <div class="header-container">
@@ -224,7 +238,7 @@ onMounted(() => {
       </div>
 
       <!-- 左侧展开按钮 -->
-      <div class="left-expand">
+      <!-- <div class="left-expand">
         <el-dropdown>
           <span class="el-dropdown-link">
             <el-icon>
@@ -232,7 +246,7 @@ onMounted(() => {
             </el-icon>
           </span>
         </el-dropdown>
-      </div>
+      </div> -->
 
       <!-- 中间空白区域 -->
       <div class="header-middle">
@@ -369,7 +383,7 @@ onMounted(() => {
         <el-menu router :default-active="router.currentRoute.value.path" class="side-menu">
           <el-menu-item index="/manager/home">
             <el-icon>
-              <HomeFilled />
+              <House />
             </el-icon>
             <span>首页</span>
           </el-menu-item>
@@ -387,9 +401,15 @@ onMounted(() => {
           </el-menu-item>
           <el-menu-item index="/manager/approve">
             <el-icon>
-              <List />
+              <EditPen />
             </el-icon>
             <span>贷款审核</span>
+          </el-menu-item>
+          <el-menu-item index="/manager/disbursement">
+            <el-icon>
+              <Money />
+            </el-icon>
+            <span>放款管理</span>
           </el-menu-item>
           <el-menu-item index="/manager/feedback">
             <el-icon>
@@ -1000,7 +1020,7 @@ onMounted(() => {
 }
 
 .notification-header {
-  margin-top: -35px;
+  margin-top: -30px;
   padding: 14px 20px;
   display: flex;
   align-items: center;
@@ -1057,7 +1077,7 @@ onMounted(() => {
 
 
 .empty-notification {
-  margin-top: -200px;
+  margin-top: -150%;
   display: flex;
   flex-direction: column;
   align-items: center;

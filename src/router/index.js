@@ -19,6 +19,7 @@ const routes = [
       { path: 'approve', component: import('../views/Approve.vue'), },
       { path: 'feedback', component: import('../views/Feedback.vue'), },
       { path: 'selfinfo', component: import('../views/SelfInfo.vue'), },
+      { path: 'disbursement', component: import('../views/Disbursement.vue'), },
     ]
   },
 

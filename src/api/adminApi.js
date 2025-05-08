@@ -252,9 +252,9 @@ export const fetchApplicationAPI = async (currentPage, pageSize, filterStatus) =
 };
 
 // 根据用户ID获取申请列表
-export const fetchApplicationByUserIdAPI = async (userId, currentPage, pageSize) => {
+export const fetchApplicationByUserIdAPI = async (userId, currentPage, pageSize, filterStatus) => {
     try {
-        const response = await apiClient.get(`/admin/apply/user?userId=${userId}&page=${currentPage - 1}&size=${pageSize}`);
+        const response = await apiClient.get(`/admin/apply/user?userId=${userId}&page=${currentPage - 1}&size=${pageSize}&status=${filterStatus}`);
         return response.data;
     }
     catch (error) {
@@ -286,6 +286,16 @@ export const auditApplicationAPI = async (applyId, status, comment) => {
     }
 };
 
+export const getAuitByApplyIdAPI = async (applyId) => {
+    try{
+        const response = await apiClient.get(`/admin/apply/audit/record?applyId=${applyId}`);
+        return response.data;
+    }
+    catch (error) {
+        throw new Error(error.response?.data?.msg || error.message);
+    }
+}
+
 // 放款
 export const loanApplicationAPI = async (applyId, amount) => {
     try {
@@ -303,6 +313,15 @@ export const loanApplicationAPI = async (applyId, amount) => {
 export const getRepaymentPlanAPI = async (applyId) => {
     try {
         const response = await apiClient.get(`/admin/repayments/get?loanId=${applyId}`);
+        return response.data;
+    } catch (error) {
+        throw new Error(error.response?.data?.msg || error.message);
+    }
+}
+
+export const getRepaymentHistoryAPI = async (applyId) => {
+    try {
+        const response = await apiClient.get(`/admin/repayments/history?loanId=${applyId}`);
         return response.data;
     } catch (error) {
         throw new Error(error.response?.data?.msg || error.message);
@@ -346,3 +365,22 @@ export const fetchUserByIdAPI = async (userId) => {
         throw new Error(error.response?.data?.msg || error.message);
     }
 };
+
+// 获取放款记录
+export const fetchDisbursementAPI = async (currentPage, pageSize) => {
+    try {
+        const response = await apiClient.get(`/admin/apply/disbursement/list?page=${currentPage - 1}&size=${pageSize}`);
+        return response.data;
+    } catch (error) {
+        throw new Error(error.response?.data?.msg || error.message);
+    }
+}
+
+export const fetchDisbursementByApplyIdAPI = async (applyId) => {
+    try {
+        const response = await apiClient.get(`/admin/apply/disbursement/get?applyId=${applyId}`);
+        return response.data;
+    } catch (error) {
+        throw new Error(error.response?.data?.msg || error.message);
+    }
+}
