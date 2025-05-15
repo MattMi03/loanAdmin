@@ -157,7 +157,7 @@ const saveMessagesToLocalStorage = () => {
 }
 
 const connectWebSocket = () => {
-  const socket = new SockJS('http://localhost:8888/ws')
+  const socket = new SockJS('http://47.108.24.53:8888/ws')
   stompClient = Stomp.over(socket)
   const token = localStorage.getItem('token')
 
@@ -195,6 +195,7 @@ const goToChangePassword = () => {
 }
 
 const handleLogout = () => {
+  stompClient.disconnect()
   localStorage.clear()
   ElMessage.success('退出成功')
   router.push('/login')
@@ -416,6 +417,12 @@ onMounted(() => {
               <ChatLineSquare />
             </el-icon>
             <span>用户反馈</span>
+          </el-menu-item>
+          <el-menu-item index="/manager/admin">
+            <el-icon>
+              <Setting />
+            </el-icon>
+            <span>管理权限</span>
           </el-menu-item>
         </el-menu>
       </div>

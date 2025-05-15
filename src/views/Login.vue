@@ -50,9 +50,6 @@
                 登录
               </el-button>
             </el-form-item>
-            <div class="register-link">
-              还没有账号？<router-link to="/register">立即注册</router-link>
-            </div>
           </el-form>
         </el-card>
       </div>
@@ -65,7 +62,6 @@ import { ref } from 'vue';
 import { ElMessage } from 'element-plus';
 import { User, Lock, Reading } from '@element-plus/icons-vue';
 import { useRouter } from 'vue-router';
-import { login } from '@/api/user';
 import { loginAPI } from '@/api/adminApi'; 
 
 const router = useRouter();
@@ -219,18 +215,4 @@ const handleLogin = async () => {
   padding-top: 4px;
 }
 
-.register-link {
-  text-align: center;
-  margin-top: 15px;
-  font-size: 14px;
-}
-
-.register-link a {
-  color: #409EFF;
-  text-decoration: none;
-}
-
-.register-link a:hover {
-  text-decoration: underline;
-}
 </style>

@@ -359,12 +359,12 @@ onMounted(fetchProducts);
 }
 
 /* 产品信息单元格样式 */
-.product-info-cell {
+/* .product-info-cell {
   display: flex;
   align-items: center;
   justify-content: flex-start;
   padding-left: 16px;
-}
+} */
 
 /* 金额样式 */
 .amount-info {

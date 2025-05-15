@@ -20,6 +20,7 @@ const routes = [
       { path: 'feedback', component: import('../views/Feedback.vue'), },
       { path: 'selfinfo', component: import('../views/SelfInfo.vue'), },
       { path: 'disbursement', component: import('../views/Disbursement.vue'), },
+      { path: 'admin', component: import('../views/Admin.vue'), },
     ]
   },
 

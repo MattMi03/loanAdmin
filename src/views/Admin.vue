@@ -1,45 +1,60 @@
 <script setup>
-import { ref, onMounted } from "vue";
-import { ElMessage } from "element-plus";
-import { fetchUserAPI, fetchUserByIdAPI } from "../api/adminApi";
-import { useRouter } from "vue-router";
+import { watch, ref, onMounted, onBeforeUnmount } from 'vue';
+import { useRoute, useRouter } from 'vue-router';
+import { ElMessage, ElTag, ElDialog, ElDescriptions, ElDescriptionsItem, ElSelect, ElOption } from 'element-plus';
+import { fetchAllAdminAPI, fetchAdminByIdAPI, createAdminAPI, deleteAdminAPI, updateAdminAPI } from '@/api/adminApi';
 
-const router = useRouter();
-
-const userList = ref([]);
+const adminList = ref([]);
 const currentPage = ref(1);
 const pageSize = ref(5);
 const totalItems = ref(0);
 const loading = ref(false);
-const filterStatus = ref('all');
+const adminIdInput = ref('');
+const selectedAdmin = ref(null);
 const detailDialogVisible = ref(false);
-const selectedUser = ref(null);
-const userIdInput = ref('');
+const createDialogVisible = ref(false);
+const updateDialogVisible = ref(false);
+const deleteDialogVisible = ref(false);
 
-const statusOptions = [
-    { value: 'all', label: '全部' },
-    { value: '1', label: '已实名' },
-    { value: '0', label: '未实名' },
-];
+// 权限选项
+const permissionOptions = ref([
+    { value: 'HOME_VIEW', label: '首页查看' },
+    { value: 'USER_MANAGE', label: '用户管理' },
+    { value: 'LOAN_APPROVE', label: '贷款审批' },
+    { value: 'PRODUCT_MANAGE', label: '产品管理' },
+    { value: 'LOAN_DISBURSE', label: '贷款发放' },
+    { value: 'FEEDBACK_VIEW', label: '反馈查看' },
+    { value: 'ADMIN_MANAGE', label: '管理员管理' }
+]);
 
-const goToLoanApplications = (user) => {
-    router.push({
-        path: '/manager/approve',
-        query: { userId: user.id }
-    });
-};
+// 表单数据 - 修正为嵌套结构
+const newAdminForm = ref({
+    user: {
+        username: '',
+        password: '',
+        phone: '',
+        email: '',
+        name: ''
+    },
+    codeList: []
+});
 
-const fetchUser = async () => {
+const updateAdminForm = ref({
+    id: '',
+    codeList: []
+});
+
+const fetchAllAdmin = async () => {
     loading.value = true;
     try {
-        const response = await fetchUserAPI(currentPage.value, pageSize.value, filterStatus.value);
+        const response = await fetchAllAdminAPI(currentPage.value, pageSize.value);
         const data = response?.data;
 
         if (data?.user && data?.meta?.field_map) {
             const fieldMap = data.meta.field_map;
             const usersObject = data.user;
 
-            userList.value = Object.values(usersObject).map(user => {
+            adminList.value = Object.values(usersObject).map(user => {
                 const parsedUser = {};
                 for (const [key, value] of Object.entries(fieldMap)) {
                     parsedUser[key] = user[value];
@@ -62,16 +77,14 @@ const fetchUser = async () => {
     }
 };
 
-const fetchUserById = async (id) => {
-    if (!id) return;
-
+const fetchAdminById = async (userId) => {
     loading.value = true;
     try {
-        const response = await fetchUserByIdAPI(id);
-        const user = response;
+        const response = await fetchAdminByIdAPI(userId);
+        const user = response.user;
+        const permissions = response.permissions;
 
-        // 格式化用户数据，与表格数据结构保持一致
-        selectedUser.value = {
+        selectedAdmin.value = {
             id: user.id,
             username: user.username,
             email: user.email,
@@ -85,7 +98,14 @@ const fetchUserById = async (id) => {
             email_verified: user.emailVerified,
             user_type: user.userType,
             createAt: user.createTime,
-            updateAt: user.updateTime
+            updateAt: user.updateTime,
+            permissions: permissions || []
+        };
+
+        // 初始化更新表单
+        updateAdminForm.value = {
+            id: user.id,
+            codeList: permissions || []
         };
 
         detailDialogVisible.value = true;
@@ -96,69 +116,128 @@ const fetchUserById = async (id) => {
     }
 };
 
-const handleUserIdSearch = () => {
-    if (!userIdInput.value) {
+const openCreateDialog = () => {
+    newAdminForm.value = {
+        user: {
+            username: '',
+            password: '',
+            phone: '',
+            email: '',
+            name: ''
+        },
+        codeList: []
+    };
+    createDialogVisible.value = true;
+};
+
+const handleCreateAdmin = async () => {
+    loading.value = true;
+    try {
+        const response = await createAdminAPI(newAdminForm.value);
+        fetchAllAdmin();
+        ElMessage.success(response.msg || "管理员创建成功");
+        createDialogVisible.value = false;
+    } catch (error) {
+        ElMessage.error("创建管理员失败: " + (error.response?.data?.msg || error.message));
+    } finally {
+        loading.value = false;
+    }
+};
+
+const openUpdateDialog = (admin) => {
+    updateAdminForm.value = {
+        id: admin.id,
+        codeList: admin.permissions || []
+    };
+    updateDialogVisible.value = true;
+};
+
+const handleUpdateAdmin = async () => {
+    loading.value = true;
+    try {
+        const response = await updateAdminAPI(updateAdminForm.value.id, updateAdminForm.value.codeList);
+        fetchAllAdmin();
+        ElMessage.success(response.msg || "权限更新成功");
+        updateDialogVisible.value = false;
+    } catch (error) {
+        ElMessage.error("更新权限失败: " + (error.response?.data?.msg || error.message));
+    } finally {
+        loading.value = false;
+    }
+};
+
+const openDeleteDialog = (admin) => {
+    selectedAdmin.value = admin;
+    deleteDialogVisible.value = true;
+};
+
+const handleDeleteAdmin = async () => {
+    loading.value = true;
+    try {
+        const response = await deleteAdminAPI(selectedAdmin.value.id);
+        fetchAllAdmin();
+        ElMessage.success(response.msg || "管理员删除成功");
+        deleteDialogVisible.value = false;
+    } catch (error) {
+        ElMessage.error("删除管理员失败: " + (error.response?.data?.msg || error.message));
+    } finally {
+        loading.value = false;
+    }
+};
+
+const handleAdminIdSearch = () => {
+    if (!adminIdInput.value) {
         ElMessage.error("请输入用户ID");
         return;
     }
 
-    const userId = Number(userIdInput.value);
+    const userId = Number(adminIdInput.value);
     if (isNaN(userId)) {
         ElMessage.error("请输入有效的用户ID");
         return;
     }
-    const foundUser = userList.value.find(user => user.id === userId);
+    const foundUser = adminList.value.find(user => user.id === userId);
+
     if (foundUser) {
-        selectedUser.value = foundUser;
+        selectedAdmin.value = foundUser;
         detailDialogVisible.value = true;
     } else {
-        fetchUserById(userId);
+        fetchAdminById(userId);
     }
-};
-
-const handleStatusChange = () => {
-    currentPage.value = 1;
-    fetchUser();
 };
 
 const handlePageChange = (page) => {
     currentPage.value = page;
-    fetchUser();
+    fetchAllAdmin();
 };
 
 const handlePageSizeChange = (size) => {
     pageSize.value = size;
     currentPage.value = 1;
-    fetchUser();
-};
-
-const showUserDetail = (user) => {
-    selectedUser.value = user;
-    detailDialogVisible.value = true;
+    fetchAllAdmin();
 };
 
 onMounted(() => {
-    fetchUser();
+    fetchAllAdmin();
 });
+
 </script>
 
 <template>
-    <div class="user-management-container">
+    <div class="admin-management-container">
         <el-card class="management-card">
             <template #header>
                 <div class="card-header">
-                    <h2 class="management-title">用户管理</h2>
+                    <h2 class="management-title">管理员管理</h2>
                     <div class="header-actions">
-                        <el-select v-model="filterStatus" @change="handleStatusChange" placeholder="筛选实名状态"
-                            class="status-select" popper-class="status-select-dropdown">
-                            <el-option v-for="item in statusOptions" :key="item.value" :label="item.label"
-                                :value="item.value" />
-                        </el-select>
                         <div>
-                            <el-input v-model="userIdInput" placeholder="输入用户ID" clearable class="search-input"
-                                @keydown.enter="handleUserIdSearch" />
-                            <el-button type="primary" @click="handleUserIdSearch" class="search-button">
+                            <el-input v-model="adminIdInput" placeholder="输入管理员ID" clearable class="search-input"
+                                @keydown.enter="handleAdminIdSearch" />
+                            <el-button type="primary" @click="handleAdminIdSearch" class="search-button">
                                 搜索
+                            </el-button>
+                            <el-button type="primary" @click="openCreateDialog">
+                                创建管理员
                             </el-button>
                         </div>
                     </div>
@@ -166,14 +245,22 @@ onMounted(() => {
             </template>
 
             <div class="table-container">
-                <el-table :data="userList" v-loading="loading" style="width: 100%" :header-cell-style="{
+                <el-table :data="adminList" v-loading="loading" style="width: 100%" :header-cell-style="{
                     background: '#f8fafc',
                     color: '#64748b',
                     textAlign: 'center'
-                }" :cell-style="{ padding: '12px 0' }">
+                }" :cell-style="{ padding: '12px 0', textAlign: 'center' }">
                     <el-table-column prop="id" label="用户ID" width="100" header-align="center">
                         <template #default="{ row }">
                             <span class="user-id">{{ row.id }}</span>
+                        </template>
+                    </el-table-column>
+
+                    <el-table-column prop="name" label="姓名" header-align="center">
+                        <template #default="{ row }">
+                            <div class="user-info-cell" style="justify-content: flex-start;">
+                                <span class="name">{{ row.name }}</span>
+                            </div>
                         </template>
                     </el-table-column>
 
@@ -209,24 +296,20 @@ onMounted(() => {
                         </template>
                     </el-table-column>
 
-                    <el-table-column label="实名状态">
-                        <template #default="{ row }">
-                            <el-tag :type="row.verified ? 'success' : 'info'" effect="light" class="status-tag">
-                                {{ row.verified ? '已实名' : '未实名' }}
-                            </el-tag>
-                        </template>
-                    </el-table-column>
-
-                    <el-table-column label="操作" fixed="right">
+                    <el-table-column label="操作" fixed="right" width="220">
                         <template #default="{ row }">
                             <div class="action-buttons">
-                                <el-button type="primary" size="small" @click="showUserDetail(row)"
-                                    class="detail-button">
+                                <el-button type="primary" size="small" @click="fetchAdminById(row.id)"
+                                    class="action-button-detail">
                                     详情
                                 </el-button>
-                                <el-button type="primary" size="small" @click="goToLoanApplications(row)"
-                                    class="loan-button">
-                                    查看贷款
+                                <el-button type="warning" size="small" @click="openUpdateDialog(row)"
+                                    class="action-button-update">
+                                    权限
+                                </el-button>
+                                <el-button type="danger" size="small" @click="openDeleteDialog(row)"
+                                    class="action-button-delete">
+                                    删除
                                 </el-button>
                             </div>
                         </template>
@@ -241,48 +324,105 @@ onMounted(() => {
             </div>
         </el-card>
 
-        <el-dialog v-model="detailDialogVisible" title="用户详情" width="700px" class="user-detail-dialog">
+        <!-- 管理员详情对话框 -->
+        <el-dialog v-model="detailDialogVisible" title="管理员详情" width="700px" class="user-detail-dialog">
             <div class="dialog-content">
                 <div class="user-profile">
                     <div class="profile-avatar">
                         <div class="avatar-circle large">
-                            {{ selectedUser?.username?.charAt(0)?.toUpperCase() || 'U' }}
+                            {{ selectedAdmin?.username?.charAt(0)?.toUpperCase() || 'A' }}
                         </div>
                     </div>
                     <div class="profile-info">
-                        <h3>{{ selectedUser?.username }}</h3>
-                        <p>{{ selectedUser?.email }}</p>
-                        <el-tag :type="selectedUser?.verified ? 'success' : 'info'" effect="light"
-                            class="profile-status">
-                            {{ selectedUser?.verified ? '已实名' : '未实名' }}
-                        </el-tag>
+                        <h3>{{ selectedAdmin?.username }}</h3>
+                        <p>{{ selectedAdmin?.email }}</p>
                     </div>
                 </div>
 
                 <el-descriptions :column="2" border class="user-details">
-                    <el-descriptions-item label="用户ID">{{ selectedUser?.id }}</el-descriptions-item>
-                    <el-descriptions-item label="用户名">{{ selectedUser?.username }}</el-descriptions-item>
-                    <el-descriptions-item label="姓名">{{ selectedUser?.name || '-' }}</el-descriptions-item>
-                    <el-descriptions-item label="用户类型">{{ selectedUser?.user_type }}</el-descriptions-item>
-                    <el-descriptions-item label="身份证号">{{ selectedUser?.id_num || '-' }}</el-descriptions-item>
-                    <el-descriptions-item label="邮箱">{{ selectedUser?.email }}</el-descriptions-item>
-                    <el-descriptions-item label="邮箱验证">
-                        <el-tag :type="selectedUser?.email_verified ? 'success' : 'info'" effect="light">
-                            {{ selectedUser?.email_verified ? '已验证' : '未验证' }}
-                        </el-tag>
-                    </el-descriptions-item>
-                    <el-descriptions-item label="电话">{{ selectedUser?.phone }}</el-descriptions-item>
-                    <el-descriptions-item label="地址">{{ selectedUser?.address || '-' }}</el-descriptions-item>
-                    <el-descriptions-item label="性别">{{ selectedUser?.gender || '-' }}</el-descriptions-item>
-                    <el-descriptions-item label="年龄">{{ selectedUser?.age || '-' }}</el-descriptions-item>
+                    <el-descriptions-item label="用户ID">{{ selectedAdmin?.id }}</el-descriptions-item>
+                    <el-descriptions-item label="用户名">{{ selectedAdmin?.username }}</el-descriptions-item>
+                    <el-descriptions-item label="姓名">{{ selectedAdmin?.name || '-' }}</el-descriptions-item>
+                    <el-descriptions-item label="邮箱">{{ selectedAdmin?.email }}</el-descriptions-item>
+                    <el-descriptions-item label="电话">{{ selectedAdmin?.phone }}</el-descriptions-item>
+                    <el-descriptions-item label="类型">{{ selectedAdmin?.user_type || '-' }}</el-descriptions-item>
                     <el-descriptions-item label="创建时间">
-                        {{ selectedUser?.createAt ? new Date(selectedUser.createAt).toLocaleString() : '-' }}
+                        {{ selectedAdmin?.createAt ? new Date(selectedAdmin.createAt).toLocaleString() : '-' }}
                     </el-descriptions-item>
                     <el-descriptions-item label="更新时间">
-                        {{ selectedUser?.updateAt ? new Date(selectedUser.updateAt).toLocaleString() : '-' }}
+                        {{ selectedAdmin?.updateAt ? new Date(selectedAdmin.updateAt).toLocaleString() : '-' }}
+                    </el-descriptions-item>
+                    <el-descriptions-item label="权限" :span="2">
+                        <div v-if="selectedAdmin?.permissions?.length">
+                            <el-tag v-for="permission in selectedAdmin.permissions" :key="permission"
+                                class="permission-tag">
+                                {{permissionOptions.find(opt => opt.value === permission)?.label || permission}}
+                            </el-tag>
+                        </div>
+                        <span v-else>-</span>
                     </el-descriptions-item>
                 </el-descriptions>
             </div>
+        </el-dialog>
+
+        <!-- 创建管理员对话框 - 修正为嵌套结构 -->
+        <el-dialog v-model="createDialogVisible" title="创建管理员" width="500px">
+            <el-form :model="newAdminForm" label-width="100px">
+                <el-form-item label="用户名" required>
+                    <el-input v-model="newAdminForm.user.username" placeholder="请输入用户名" />
+                </el-form-item>
+                <el-form-item label="密码" required>
+                    <el-input v-model="newAdminForm.user.password" type="password" placeholder="请输入密码" show-password />
+                </el-form-item>
+                <el-form-item label="姓名">
+                    <el-input v-model="newAdminForm.user.name" placeholder="请输入姓名" />
+                </el-form-item>
+                <el-form-item label="邮箱" required>
+                    <el-input v-model="newAdminForm.user.email" placeholder="请输入邮箱" />
+                </el-form-item>
+                <el-form-item label="电话">
+                    <el-input v-model="newAdminForm.user.phone" placeholder="请输入电话" />
+                </el-form-item>
+                <el-form-item label="权限">
+                    <el-select v-model="newAdminForm.codeList" multiple placeholder="请选择权限" style="width: 100%">
+                        <el-option v-for="item in permissionOptions" :key="item.value" :label="item.label"
+                            :value="item.value" />
+                    </el-select>
+                </el-form-item>
+            </el-form>
+            <template #footer>
+                <el-button @click="createDialogVisible = false">取消</el-button>
+                <el-button type="primary" @click="handleCreateAdmin" :loading="loading">创建</el-button>
+            </template>
+        </el-dialog>
+
+        <!-- 更新权限对话框 -->
+        <el-dialog v-model="updateDialogVisible" title="更新管理员权限" width="500px">
+            <el-form :model="updateAdminForm" label-width="100px">
+                <el-form-item label="管理员ID">
+                    <el-input v-model="updateAdminForm.id" disabled />
+                </el-form-item>
+                <el-form-item label="权限">
+                    <el-select v-model="updateAdminForm.codeList" multiple placeholder="请选择权限" style="width: 100%">
+                        <el-option v-for="item in permissionOptions" :key="item.value" :label="item.label"
+                            :value="item.value" />
+                    </el-select>
+                </el-form-item>
+            </el-form>
+            <template #footer>
+                <el-button @click="updateDialogVisible = false">取消</el-button>
+                <el-button type="primary" @click="handleUpdateAdmin" :loading="loading">更新</el-button>
+            </template>
+        </el-dialog>
+
+        <!-- 删除确认对话框 -->
+        <el-dialog v-model="deleteDialogVisible" title="删除管理员" width="400px">
+            <p>确定要删除管理员 <strong>{{ selectedAdmin?.username }}</strong> 吗？</p>
+            <p style="color: #f56c6c;">此操作不可撤销！</p>
+            <template #footer>
+                <el-button @click="deleteDialogVisible = false">取消</el-button>
+                <el-button type="danger" @click="handleDeleteAdmin" :loading="loading">确认删除</el-button>
+            </template>
         </el-dialog>
     </div>
 </template>
@@ -333,6 +473,24 @@ onMounted(() => {
     justify-content: flex-end;
 }
 
+.action-button-detail {
+    background: linear-gradient(135deg, #3b82f6 0%, #60a5fa 100%);
+    border: none;
+    border-radius: 8px;
+}
+
+.action-button-update {
+    background: linear-gradient(135deg, #4caf50 0%, #8bc34a 100%);
+    border: none;
+    border-radius: 8px;
+}
+
+.action-button-delete {
+    background: linear-gradient(135deg, #ff416c 0%, #ff4b2b 100%);
+    border: none;
+    border-radius: 8px;
+}
+
 /* 用户信息单元格样式 */
 /* .user-info-cell {
     display: flex;
@@ -362,6 +520,7 @@ onMounted(() => {
     font-weight: 500;
 } */
 
+
 /* 状态标签样式 */
 .status-tag {
     border-radius: 12px;
@@ -377,8 +536,8 @@ onMounted(() => {
     background-color: #f1f5f9 !important;
 }
 
-/* 其他原有样式保持不变... */
-.user-management-container {
+/* 容器样式 */
+.admin-management-container {
     display: flex;
     justify-content: center;
     min-height: 80vh;
@@ -440,28 +599,9 @@ onMounted(() => {
     color: white;
 }
 
-.status-select {
-    width: 160px;
-}
-
-.status-select :deep(.el-input__inner) {
-    background-color: rgba(255, 255, 255, 0.2);
-    border: none;
-    color: white;
-}
-
-.status-select :deep(.el-input__inner::placeholder) {
-    color: rgba(255, 255, 255, 0.7);
-}
-
-.status-select :deep(.el-input__suffix) {
-    color: white;
-}
-
 .table-container {
     padding: 0 20px;
     height: calc(100vh - 450px);
-    /* 固定高度，根据实际布局调整 */
     display: flex;
     flex-direction: column;
 }
@@ -471,12 +611,6 @@ onMounted(() => {
     flex: 1;
     overflow: auto;
     position: relative;
-}
-
-/* 表格样式 */
-:deep(.el-table) {
-    width: 100% !important;
-    table-layout: fixed;
 }
 
 /* 表头固定 */
@@ -515,18 +649,6 @@ onMounted(() => {
 
 .username {
     font-weight: 500;
-}
-
-.detail-button {
-    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-    border: none;
-    border-radius: 8px;
-}
-
-.loan-button {
-    background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
-    border: none;
-    border-radius: 8px;
 }
 
 .pagination-container {
@@ -610,6 +732,11 @@ onMounted(() => {
 
 .user-details :deep(.el-descriptions__content) {
     background-color: white;
+}
+
+.permission-tag {
+    margin-right: 8px;
+    margin-bottom: 8px;
 }
 
 @media (max-width: 992px) {

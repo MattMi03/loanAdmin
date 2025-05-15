@@ -2,6 +2,7 @@
 import { ref, onMounted } from 'vue';
 import { getStatisticsAPI } from '@/api/adminApi';
 import { CaretTop, CaretBottom, Warning } from '@element-plus/icons-vue';
+import { ElMessage } from 'element-plus';
 
 const today = new Date();
 const dateRange = ref([today, today]);
@@ -46,7 +47,7 @@ const fetchAllStatistics = async () => {
       tip: `${repayMap[key]}在选定时间内的统计值`
     }));
   } catch (e) {
-    console.error('统计数据获取失败：', e);
+    ElMessage.error('获取统计数据失败: ' + e.message);
   }
 };
 

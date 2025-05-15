@@ -1,7 +1,7 @@
 import axios from 'axios';
 
 const apiClient = axios.create({
-    baseURL: 'http://localhost:8888/api',
+    baseURL: import.meta.env.VITE_API_BASE_URL,
     headers: {
         Accept: "*/*",
     }
@@ -21,6 +21,7 @@ apiClient.interceptors.request.use(
 // 登录接口
 export const loginAPI = async (loginData) => {
     try {
+        localStorage.clear();
         const response = await apiClient.post('/auth/admin/login', loginData);
         return response.data;
     } catch (error) {
@@ -71,10 +72,10 @@ export const fetchProductAPI = async (currentPage, pageSize, filterStatus) => {
             url = `${path}?status=${filterStatus.toLowerCase()}&page=${currentPage - 1}&size=${pageSize}`;
         }
 
-        const headers = await getSignatureHeaders('/api' + path);
+        // const headers = await getSignatureHeaders('/api' + path);
 
         const response = await apiClient.get(url, {
-            headers,
+            // headers,
         });
 
         return response.data;
@@ -287,7 +288,7 @@ export const auditApplicationAPI = async (applyId, status, comment) => {
 };
 
 export const getAuitByApplyIdAPI = async (applyId) => {
-    try{
+    try {
         const response = await apiClient.get(`/admin/apply/audit/record?applyId=${applyId}`);
         return response.data;
     }
@@ -381,6 +382,56 @@ export const fetchDisbursementByApplyIdAPI = async (applyId) => {
         const response = await apiClient.get(`/admin/apply/disbursement/get?applyId=${applyId}`);
         return response.data;
     } catch (error) {
+        throw new Error(error.response?.data?.msg || error.message);
+    }
+}
+
+export const fetchAllAdminAPI = async (page, size) => {
+    try {
+        const response = await apiClient.get(`/admin/admin/list?page=${page - 1}&size=${size}`);
+        return response.data;
+    } catch (error) {
+        throw new Error(error.response?.data?.msg || error.message);
+    }
+}
+
+// 根据用户ID获取管理员详情
+export const fetchAdminByIdAPI = async (adminId) => {
+    try {
+        const response = await apiClient.get(`/admin/admin/info?userId=${adminId}`);
+        return response.data;
+    } catch (error) {
+        throw new Error(error.response?.data?.msg || error.message);
+    }
+}
+
+// 创建管理员
+export const createAdminAPI = async (payload) => {
+    try {
+        const response = await apiClient.post('/admin/admin/create', payload);
+        return response.data;
+    } catch (error) {
+        throw new Error(error.response?.data?.msg || error.message);
+    }
+}
+
+// 删除管理员
+export const deleteAdminAPI = async (adminId) => {
+    try {
+        const response = await apiClient.delete(`/admin/admin/delete?userId=${adminId}`);
+        return response.data;
+    } catch (error) {
+        throw new Error(error.response?.data?.msg || error.message);
+    }
+}
+
+// 更新管理员权限
+export const updateAdminAPI = async (adminId, payload) => {
+    try {
+        const response = await apiClient.post(`/admin/admin/update?userId=${adminId}`, payload);
+        return response.data;
+    }
+    catch (error) {
         throw new Error(error.response?.data?.msg || error.message);
     }
 }

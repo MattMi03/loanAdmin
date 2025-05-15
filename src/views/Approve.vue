@@ -670,12 +670,12 @@ watch(() => route.query.applyId, (newId) => {
 }
 
 /* 用户信息单元格样式 */
-.user-info-cell {
+/* .user-info-cell {
     display: flex;
     align-items: center;
     justify-content: flex-start;
     padding-left: 16px;
-}
+} */
 
 /* 金额样式 */
 .amount-info {
