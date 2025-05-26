@@ -29,14 +29,14 @@ const fetchDisbursement = async () => {
         if (applyId.value) {
             response = await fetchDisbursementByApplyIdAPI(applyId.value);
             const item = response?.loanDisbursement;
-            if (item) item.amount = item.amount / 100;
+            if (item) item.amount = item.amount;
             disbursementList.value = [item];
         } else {
             response = await fetchDisbursementAPI(currentPage.value, pageSize.value);
             disbursementList.value = (response?.loanDisbursements || []).map(item => {
                 return {
                     ...item,
-                    amount: item.amount / 100,
+                    amount: item.amount,
                 };
             });
         }
@@ -74,10 +74,10 @@ const showRepaymentPlan = async (loanId) => {
         const response = await getRepaymentPlanAPI(loanId);
         repaymentPlan.value = {
             ...response,
-            amount: response.amount / 100,
-            monthlyPayment: response.monthlyPayment / 100,
-            recentAmount: response.recentAmount / 100,
-            remainingAmount: response.remainingAmount / 100,
+            amount: response.amount,
+            monthlyPayment: response.monthlyPayment,
+            recentAmount: response.recentAmount,
+            remainingAmount: response.remainingAmount,
             dueDate: formatDate(response.dueDate),
             recentDate: formatDate(response.recentDate),
             createTime: formatDate(response.createTime),
@@ -96,7 +96,7 @@ const showRepaymentHistory = async (loanId) => {
         const response = await getRepaymentHistoryAPI(loanId);
         repaymentHistory.value = response?.repayHistory || [];
         repaymentHistory.value.forEach(item => {
-            item.amount = item.amount / 100;
+            item.amount = item.amount;
             item.createTime = formatDate(item.createTime);
             item.updateTime = formatDate(item.updateTime);
         });

@@ -68,15 +68,15 @@ const fetchApplications = async () => {
 
                 return {
                     ...app,
-                    amount: Number(app.amount) / 100,
+                    amount: Number(app.amount),
                     createTime: formatDate(app.createTime),
                     updateTime: formatDate(app.updateTime),
                     interestRate: Number(app.interestRate),
                     user,
                     product: {
                         ...product,
-                        minAmount: Number(product.minAmount) / 100,
-                        maxAmount: Number(product.maxAmount) / 100,
+                        minAmount: Number(product.minAmount),
+                        maxAmount: Number(product.maxAmount),
                         minRate: Number(product.minRate),
                         maxRate: Number(product.maxRate)
                     }
@@ -159,10 +159,10 @@ const showRepaymentPlan = async (loanId) => {
         const response = await getRepaymentPlanAPI(loanId);
         repaymentPlan.value = {
             ...response,
-            amount: response.amount / 100,
-            monthlyPayment: response.monthlyPayment / 100,
-            recentAmount: response.recentAmount / 100,
-            remainingAmount: response.remainingAmount / 100,
+            amount: response.amount,
+            monthlyPayment: response.monthlyPayment,
+            recentAmount: response.recentAmount,
+            remainingAmount: response.remainingAmount,
             dueDate: formatDate(response.dueDate),
             recentDate: formatDate(response.recentDate),
             createTime: formatDate(response.createTime),
@@ -221,7 +221,7 @@ const showDetail = (app) => {
         const record = res.loanApproval;
         const auditRecords = record ? [{
             ...record,
-            amount: record.amount / 100,
+            amount: record.amount,
             approvalTime: formatDate(record.approvalTime)
         }] : [];
 

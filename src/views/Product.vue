@@ -68,8 +68,8 @@ const fetchProducts = async () => {
     products.value = Object.entries(productsData).map(([id, product]) => ({
       id: Number(id),
       name: product[fieldMap["product_name"]],
-      minAmount: product[fieldMap["amount_range.min"]] / 100,
-      maxAmount: product[fieldMap["amount_range.max"]] / 100,
+      minAmount: product[fieldMap["amount_range.min"]],
+      maxAmount: product[fieldMap["amount_range.max"]],
       minTerm: product[fieldMap["term_range.min"]],
       maxTerm: product[fieldMap["term_range.max"]],
       minRate: product[fieldMap["rate_range.min"]],
